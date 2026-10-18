@@ -1,0 +1,36 @@
+{
+  "name": "expenses",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tus ingresos y gastos del mes en un calendario, guardados en tu almacén: anota a mano o con texto libre, programa lo que se repite y mira el resumen por categoría (ecosistema Dotrino).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test test/*.test.js",
+    "test:e2e": "vite build && node --test --test-concurrency=1 test/e2e/*.e2e.mjs"
+  },
+  "dependencies": {
+    "@dotrino/identity": "0.121.2",
+    "@dotrino/install": "0.3.3",
+    "@dotrino/nav": "0.3.0",
+    "@dotrino/reputation": "0.12.0",
+    "@dotrino/store": "0.12.4",
+    "@dotrino/theme": "0.1.0",
+    "@dotrino/topbar": "0.16.2",
+    "vue": "3.5.44"
+  },
+  "overrides": {
+    "@dotrino/store": "0.12.4"
+  },
+  "devDependencies": {
+    "@dotrino/prerender": "0.1.0",
+    "@vitejs/plugin-basic-ssl": "2.3.0",
+    "@vitejs/plugin-vue": "6.0.2",
+    "playwright": "1.62.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vite-plugin-pwa": "1.2.0"
+  }
+}

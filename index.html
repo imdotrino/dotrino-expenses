@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Expenses · Tus ingresos y gastos del mes · Dotrino</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+
+  <meta name="theme-color" content="#00658c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Expenses" />
+
+  <meta name="description" content="Lleva tus ingresos y gastos del mes en un calendario. Anota a mano o con una frase, programa lo que se repite cada mes y mira en qué se va el dinero. Todo queda en tu almacén. Sin anuncios, sin cookies, sin rastreo." />
+  <link rel="canonical" href="https://expenses.dotrino.com/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:locale:alternate" content="en_US" />
+  <meta property="og:site_name" content="Dotrino" />
+  <meta property="og:title" content="Expenses · Tus ingresos y gastos del mes" />
+  <meta property="og:description" content="Tus ingresos y gastos en un calendario, resumidos por categoría y guardados en tu almacén." />
+  <meta property="og:url" content="https://expenses.dotrino.com/" />
+  <meta property="og:image" content="https://expenses.dotrino.com/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Expenses · Tus ingresos y gastos del mes" />
+  <meta name="twitter:description" content="Tus ingresos y gastos en un calendario, resumidos por categoría y guardados en tu almacén." />
+  <meta name="twitter:image" content="https://expenses.dotrino.com/og.jpg" />
+
+  <!-- Analítica cookieless autohosteada (GoatCounter); no cuenta en localhost/LAN. -->
+  <script>window.goatcounter={path:function(p){return location.hostname+p}}</script>
+  <script data-goatcounter="https://goat.dotrino.com/count" async src="https://goat.dotrino.com/count.js"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Expenses",
+    "url": "https://expenses.dotrino.com/",
+    "description": "Registro de ingresos y gastos mensuales en un calendario, con movimientos recurrentes y resumen por categoría; los datos se guardan en el almacén del usuario.",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Web",
+    "inLanguage": ["es", "en"],
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "publisher": { "@type": "Organization", "name": "Dotrino", "url": "https://dotrino.com/" }
+  }
+  </script>
+</head>
+<body>
+  <!-- La moneda de support (§6) viene DENTRO de <dotrino-topbar> (§5). -->
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

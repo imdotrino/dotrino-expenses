@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#00658c"/>
+  <!-- hoja de calendario (dentro de la zona segura del icono maskable) -->
+  <rect x="116" y="132" width="280" height="260" rx="28" fill="#f7fafc"/>
+  <rect x="116" y="132" width="280" height="64" rx="28" fill="#72c1f0"/>
+  <rect x="116" y="168" width="280" height="28" fill="#72c1f0"/>
+  <rect x="170" y="104" width="28" height="64" rx="14" fill="#f7fafc"/>
+  <rect x="314" y="104" width="28" height="64" rx="14" fill="#f7fafc"/>
+  <!-- barras: lo que sale y lo que entra -->
+  <rect x="156" y="300" width="40" height="56" rx="8" fill="#bfc8cf"/>
+  <rect x="212" y="268" width="40" height="88" rx="8" fill="#bfc8cf"/>
+  <rect x="268" y="236" width="40" height="120" rx="8" fill="#006b5c"/>
+  <!-- la moneda -->
+  <circle cx="352" cy="286" r="56" fill="#f0b429"/>
+  <circle cx="352" cy="286" r="44" fill="none" stroke="#c98a0a" stroke-width="6"/>
+  <text x="352" y="306" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="700" text-anchor="middle" fill="#7a5200">$</text>
+</svg>
