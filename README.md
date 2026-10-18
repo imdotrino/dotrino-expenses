@@ -9,7 +9,7 @@ frase («almuerzo 4.50»), programas lo que se repite cada mes y ves en qué se 
 > decisiones sobre ella también — qué compartes, con quién, cuándo y por qué. Sin
 > anuncios, sin cookies, sin rastreo de datos, sin vender tu identidad a nadie.
 
-**Cómo se usa:** [wiki.dotrino.com/apps/gastos](https://wiki.dotrino.com/apps/gastos/) (pendiente).
+**Cómo se usa:** [wiki.dotrino.com/apps/gastos](https://wiki.dotrino.com/apps/gastos/).
 Este README es para quien desarrolla. El diseño y las fases están en [`docs/DISENO.md`](./docs/DISENO.md).
 
 ## Estado
