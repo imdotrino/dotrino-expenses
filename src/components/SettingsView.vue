@@ -1,11 +1,12 @@
 <script setup>
-// Ajustes: dónde están los datos, la moneda y las categorías propias.
+// Ajustes: dónde están los datos, la IA del usuario, la moneda y las categorías propias.
 import { ref, computed } from 'vue'
 import { t, lang, errorText } from '../i18n.js'
 import { state, categories, refreshSettings, toast } from '../state.js'
 import { savePrefs, saveCustomCategory, removeCustomCategory } from '../lib/repo.js'
 import { DEFAULT_CATEGORIES, categoryLabel, slugify } from '../lib/categories.js'
 import BackupCard from './BackupCard.vue'
+import AiCard from './AiCard.vue'
 
 const CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'PEN', 'ARS', 'CLP', 'BRL', 'GBP']
 
@@ -66,6 +67,7 @@ async function remove (c) {
 <template>
   <section class="stack" data-testid="settings-view">
     <BackupCard />
+    <AiCard />
 
     <section class="card stack">
       <h2>{{ t('settings.currency') }}</h2>

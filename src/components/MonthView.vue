@@ -4,12 +4,13 @@
 // se revisa antes de guardar.
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBackLayer } from '@dotrino/nav/vue'
-import { t, tl, errorText, formatDate, monthName } from '../i18n.js'
-import { state, money, categoryName, categoryIcon, toast } from '../state.js'
+import { t, tl, lang, errorText, formatDate, monthName } from '../i18n.js'
+import { state, money, categories, categoryName, categoryIcon, toast } from '../state.js'
 import { ensureRecurring, saveMovement, removeMovement } from '../lib/repo.js'
 import { monthTotals, dayTotals } from '../lib/summary.js'
 import { localMonth, localDay, shiftMonth, daysInMonth, firstWeekdayMonday, dayToDate } from '../lib/dates.js'
 import { parseMovement } from '../lib/parse.js'
+import { parseWithAi } from '../lib/ai.js'
 import MovementForm from './MovementForm.vue'
 
 const MONTH_KEY = 'expenses.month'
@@ -22,6 +23,7 @@ const editing = ref(null)          // movimiento en el formulario (nuevo o exist
 const formOpen = ref(false)
 const quick = ref('')
 const quickProblem = ref('')
+const quickBusy = ref(false)
 
 useBackLayer(formOpen)
 
@@ -93,15 +95,39 @@ function openEdit (m) {
   formOpen.value = true
 }
 
-function fromQuick () {
+// Con la IA del usuario, la frase la entiende su modelo; si no contesta, se dice en pantalla y
+// se usan las reglas (el usuario revisa siempre lo que se entendió). Sin IA, las reglas.
+async function fromQuick () {
   quickProblem.value = ''
-  const parsed = parseMovement(quick.value)
+  const text = quick.value.trim()
+  if (!text) return
+  if (state.ai.configured) {
+    quickBusy.value = true
+    try {
+      const m = await parseWithAi(text, { today: today.value, categories: categories(), lang: lang.value })
+      return openReview({ ...m, source: 'text' })
+    } catch (e) {
+      console.error('[expenses] ai parse:', e)
+      if (e?.code === 'ai-no-amount') {
+        quickProblem.value = t('month.quickNoAmount')
+        return
+      }
+      toast(t('ai.fellBack', { label: state.ai.label, reason: errorText(e) }), 'error')
+    } finally {
+      quickBusy.value = false
+    }
+  }
+  const parsed = parseMovement(text)
   if (!parsed) {
     quickProblem.value = t('month.quickNoAmount')
     return
   }
   const { hints, ...rest } = parsed
-  editing.value = { ...rest, source: 'text', review: true }
+  openReview({ ...rest, source: 'text' })
+}
+
+function openReview (m) {
+  editing.value = { ...m, review: true }
   formOpen.value = true
 }
 
@@ -178,11 +204,14 @@ onMounted(load)
         <span>{{ t('month.quick') }}</span>
         <div class="row">
           <input v-model="quick" class="grow" :placeholder="t('month.quickPlaceholder')" data-testid="quick-input" @keydown.enter.prevent="fromQuick" />
-          <button type="button" class="btn primary" :disabled="!quick.trim()" data-testid="quick-go" @click="fromQuick">→</button>
+          <button type="button" class="btn primary" :disabled="!quick.trim() || quickBusy" data-testid="quick-go" @click="fromQuick">{{ quickBusy ? '…' : '→' }}</button>
         </div>
       </label>
       <p v-if="quickProblem" class="problem" data-testid="quick-problem">{{ quickProblem }}</p>
-      <p v-else class="info-text">{{ t('month.quickHelp') }}</p>
+      <p v-else class="info-text">
+        {{ quickBusy ? t('ai.thinking') : t('month.quickHelp') }}
+        <span class="chip" data-testid="quick-engine">{{ state.ai.configured ? t('ai.usingAi', { label: state.ai.label }) : t('ai.usingRules') }}</span>
+      </p>
     </div>
 
     <div class="day-head">

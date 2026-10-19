@@ -12,6 +12,7 @@
     "test:e2e": "vite build && node --test --test-concurrency=1 test/e2e/*.e2e.mjs"
   },
   "dependencies": {
+    "@dotrino/ai": "0.1.0",
     "@dotrino/identity": "0.121.3",
     "@dotrino/install": "0.3.3",
     "@dotrino/nav": "0.3.0",

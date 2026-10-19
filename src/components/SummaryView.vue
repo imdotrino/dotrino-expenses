@@ -2,16 +2,20 @@
 // El mes en números: totales, por categoría (barras de CSS, sin librería) y frente al mes
 // anterior. Y la salida a CSV.
 import { ref, computed, watch, onMounted } from 'vue'
-import { t, errorText, monthName } from '../i18n.js'
+import { t, lang, errorText, monthName } from '../i18n.js'
 import { state, money, categoryName, categoryIcon, toast } from '../state.js'
 import { listMovements } from '../lib/repo.js'
 import { monthTotals, byCategory } from '../lib/summary.js'
 import { movementsToCsv, downloadBlob } from '../lib/csv.js'
 import { localMonth, shiftMonth } from '../lib/dates.js'
+import { toDecimal } from '../lib/money.js'
+import { describeMonth } from '../lib/ai.js'
 
 const month = ref(readMonth())
 const movements = ref([])
 const previous = ref([])
+const description = ref('')
+const describing = ref(false)
 
 const totals = computed(() => monthTotals(movements.value))
 const prevTotals = computed(() => monthTotals(previous.value))
@@ -36,6 +40,7 @@ function readMonth () {
 }
 
 async function load () {
+  description.value = ''
   try {
     const [cur, prev] = await Promise.all([listMovements(month.value), listMovements(shiftMonth(month.value, -1))])
     movements.value = cur
@@ -49,6 +54,28 @@ async function load () {
 function go (delta) {
   month.value = shiftMonth(month.value, delta)
   try { sessionStorage.setItem('expenses.month', month.value) } catch { /* modo privado */ }
+}
+
+// Al proveedor van solo los totales por categoría (con su nombre), de este mes y del anterior.
+async function describe () {
+  describing.value = true
+  try {
+    const rows = (list) => list.map((c) => ({ name: categoryName(c.category), total: toDecimal(c.total) }))
+    const prevTotals = monthTotals(previous.value)
+    description.value = await describeMonth({
+      month: monthName(month.value),
+      prevMonth: monthName(shiftMonth(month.value, -1)),
+      current: { income: toDecimal(totals.value.income), expense: toDecimal(totals.value.expense), expenses: rows(expenses.value), incomes: rows(incomes.value) },
+      previous: { income: toDecimal(prevTotals.income), expense: toDecimal(prevTotals.expense), expenses: rows(byCategory(previous.value, 'expense')) },
+      currency: state.prefs.currency,
+      lang: lang.value,
+    })
+  } catch (e) {
+    console.error('[expenses] describe month:', e)
+    toast(errorText(e), 'error')
+  } finally {
+    describing.value = false
+  }
 }
 
 function exportCsv () {
@@ -107,6 +134,14 @@ onMounted(load)
         </ul>
       </section>
     </template>
+
+    <section v-if="state.ai.configured && confirmed" class="card stack" data-testid="describe-card">
+      <p v-if="description" data-testid="description">{{ description }}</p>
+      <div class="row between">
+        <span class="info-text">{{ t('ai.describeNote', { label: state.ai.label }) }}</span>
+        <button type="button" class="btn small" :disabled="describing" data-testid="describe" @click="describe">{{ describing ? t('ai.describing') : t('ai.describe') }}</button>
+      </div>
+    </section>
 
     <div class="actions start">
       <button type="button" class="btn" :disabled="!movements.length" data-testid="export-csv" @click="exportCsv">{{ t('summary.export') }}</button>

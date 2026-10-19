@@ -17,7 +17,7 @@ Este README es para quien desarrolla. El diseño y las fases están en [`docs/DI
 | Fase | Qué | Estado |
 |---|---|---|
 | F1 | movimientos, calendario, recurrentes, resumen por categoría, CSV, frase libre por reglas | **hecho** |
-| F2 | llave de IA del usuario (`@dotrino/ai`): texto libre, categorizar, resumen llano | pendiente |
+| F2 | llave de IA del usuario (`@dotrino/ai`): la frase la entiende su modelo, resumen del mes en palabras | **hecho** |
 | F3 | dictado (`@dotrino/dictation`): Whisper local o el proveedor del usuario | pendiente |
 | F4 | correo: pegar a mano, agente IMAP en el PC (`@dotrino/expenses-agent`), Gmail por OAuth | pendiente |
 | F5 | recordatorios, wiki, salir de «En desarrollo» | pendiente |
@@ -31,8 +31,9 @@ Este README es para quien desarrolla. El diseño y las fases están en [`docs/DI
 | Reglas que se repiten cada mes | `src/lib/recurring.js` |
 | Sumas del mes y por categoría | `src/lib/summary.js` |
 | Qué se guarda y con qué forma | `src/lib/repo.js` (`@dotrino/store`, un hilo por mes) |
+| La IA del usuario: llave sellada, frase → movimiento, el mes en palabras | `src/lib/ai.js` (`@dotrino/ai`), comprobación en `src/lib/ai-check.js` |
 
-Pilares: `@dotrino/identity`, `@dotrino/store`, `@dotrino/topbar`, `@dotrino/theme`,
+Pilares: `@dotrino/ai`, `@dotrino/identity`, `@dotrino/store`, `@dotrino/topbar`, `@dotrino/theme`,
 `@dotrino/nav`, `@dotrino/install`, `@dotrino/reputation`, `@dotrino/prerender`.
 
 ## Desarrollo
@@ -41,6 +42,7 @@ Pilares: `@dotrino/identity`, `@dotrino/store`, `@dotrino/topbar`, `@dotrino/the
 npm install
 npm run dev        # https://localhost:3150 (HTTPS autofirmado: los iframes del ecosistema lo piden)
 npm test           # pruebas de las funciones puras
+npm run test:e2e   # navegador real; la IA va contra un proveedor simulado
 npm run build      # → dist/
 ```
 

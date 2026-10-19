@@ -4,6 +4,7 @@
 //   expenses.settings            { id: 'recurring:<uuid>', … }  una regla recurrente
 //                                { id: 'category:<key>', … }    una categoría propia
 //                                { id: 'prefs', … }             preferencias
+//                                { id: 'ai', provider, envelope } la llave de IA, SELLADA (lib/ai.js)
 //
 // Escribir con el mismo id actualiza la entrada (el almacén fusiona por id).
 
@@ -17,6 +18,7 @@ const MOVEMENTS_PREFIX = 'expenses.movements.'
 const RECURRING_PREFIX = 'recurring:'
 const CATEGORY_PREFIX = 'category:'
 const PREFS = 'prefs'
+const AI = 'ai'
 
 export const DEFAULT_PREFS = Object.freeze({ currency: 'USD' })
 
@@ -159,4 +161,21 @@ export async function readPrefs () {
 export async function savePrefs (prefs) {
   await writeSetting(PREFS, prefs)
   return { ...DEFAULT_PREFS, ...prefs }
+}
+
+// ---------- la llave de IA (sellada; la abre lib/ai.js) ----------
+
+export async function readAiRecord () {
+  const entry = (await settings()).find((e) => e.id === AI)
+  if (!entry) return null
+  if (!entry.envelope) throw codeError('ai-record-broken', 'the saved AI settings have no sealed envelope')
+  return { provider: entry.provider, envelope: entry.envelope }
+}
+
+export async function saveAiRecord ({ provider, envelope }) {
+  await writeSetting(AI, { provider, envelope })
+}
+
+export async function removeAiRecord () {
+  return removeSetting(AI)
 }
