@@ -139,6 +139,51 @@ export async function parseWithAi (text, { today, categories, lang }) {
   return checkMovement(answer, { today, categories })
 }
 
+// ---------- un aviso del banco → movimiento ----------
+
+/**
+ * Lo mismo que la frase, para un correo del banco pegado (o traído del buzón). Al proveedor va
+ * el texto del correo, recortado; el usuario lo sabe porque lo dice Ajustes → Tu IA.
+ * Devuelve null si el modelo dice que el correo no es una operación (saldo, publicidad).
+ */
+export async function parseMailWithAi (text, { today, categories, lang }) {
+  const ai = client()
+  const keys = categories.map((c) => c.key)
+  const list = categories.map((c) => `${c.key} — ${categoryLabel(c, lang)} (${c.kind})`).join('\n')
+  const schema = {
+    type: 'object',
+    properties: {
+      amount: { type: 'string' },
+      type: { type: 'string', enum: ['expense', 'income'] },
+      category: { type: 'string', enum: keys },
+      note: { type: 'string' },
+      date: { type: 'string' },
+      bank: { type: 'string' },
+    },
+    required: ['amount', 'type', 'category', 'note', 'date', 'bank'],
+    additionalProperties: false,
+  }
+  const system = [
+    'You read one notification email from a bank and extract the single money movement it reports.',
+    `Today is ${today}. Use the date of the operation written in the email (YYYY-MM-DD); without one, use today.`,
+    'Answer with JSON: amount (the amount of the OPERATION as a decimal number in text, never the balance or the credit limit;',
+    '"" if the email reports no operation, e.g. a balance notice or an advertisement), type ("expense" if money left the account',
+    `or was charged to a card, "income" if it came in), category (exactly one key from the list, matching the type), note (the merchant`,
+    `or the person, a few words, in ${lang === 'es' ? 'Spanish' : 'English'}), bank (the bank's name, "" if unknown).`,
+    'Categories (key — label (kind)):',
+    list,
+  ].join('\n')
+  const answer = await ai.askJson({ system, prompt: text.slice(0, 6000), schema, maxTokens: 300, temperature: 0, effort: 'low' })
+  let m
+  try {
+    m = checkMovement(answer, { today, categories })
+  } catch (e) {
+    if (e.code === 'ai-no-amount') return null
+    throw e
+  }
+  return { ...m, bank: String(answer.bank || '').trim().slice(0, 40) }
+}
+
 // ---------- la voz → texto (el dictado con el proveedor) ----------
 
 /** Lo que pasa <dotrino-dictation engine="provider"> como `.transcriber`. */

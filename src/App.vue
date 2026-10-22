@@ -10,8 +10,9 @@ import MonthView from './components/MonthView.vue'
 import SummaryView from './components/SummaryView.vue'
 import RecurringView from './components/RecurringView.vue'
 import SettingsView from './components/SettingsView.vue'
+import InboxView from './components/InboxView.vue'
 
-const TABS = ['month', 'summary', 'recurring', 'settings']
+const TABS = ['month', 'inbox', 'summary', 'recurring', 'settings']
 // La pestaña sobrevive a un refresco; abrir la app de cero vuelve al mes (§4).
 const TAB_KEY = 'expenses.tab'
 
@@ -69,7 +70,7 @@ onMounted(() => {
       v-for="name in TABS" :key="name" role="tab" class="tab"
       :aria-selected="tab === name" :data-testid="`tab-${name}`"
       @click="setTab(name)"
-    >{{ t(`tabs.${name}`) }}</button>
+    >{{ t(`tabs.${name}`) }}<span v-if="name === 'inbox' && state.inbox.length" class="badge" data-testid="inbox-count">{{ state.inbox.length }}</span></button>
   </nav>
 
   <main class="main">
@@ -82,6 +83,7 @@ onMounted(() => {
 
     <template v-else>
       <MonthView v-if="tab === 'month'" />
+      <InboxView v-else-if="tab === 'inbox'" />
       <SummaryView v-else-if="tab === 'summary'" />
       <RecurringView v-else-if="tab === 'recurring'" />
       <SettingsView v-else-if="tab === 'settings'" />

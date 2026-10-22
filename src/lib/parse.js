@@ -51,6 +51,14 @@ function normalizeSpoken (text) {
   return text.replace(SPOKEN_AMOUNT, (_, units, c1, c2) => `${units}.${String(c1 ?? c2).padStart(2, '0')}`)
 }
 
+/** La categoría que sugieren las palabras del texto, o null. */
+export function guessCategory (text) {
+  for (const [key, re] of CATEGORY_WORDS) {
+    if (re.test(text)) return key
+  }
+  return null
+}
+
 /**
  * @param {string} text
  * @param {{ today?: string }} [opts]  'aaaa-mm-dd' que cuenta como hoy (para probar)
@@ -101,10 +109,8 @@ export function parseMovement (text, { today = localDay() } = {}) {
     }
   }
 
-  let category = null
-  for (const [key, re] of CATEGORY_WORDS) {
-    if (re.test(src)) { category = key; hints.push('category-word'); break }
-  }
+  let category = guessCategory(src)
+  if (category) hints.push('category-word')
   // Una categoría de ingreso en un gasto (o al revés) dice que el tipo estaba mal leído, salvo
   // que el signo lo haya fijado el usuario.
   const incomeCats = new Set(['salary', 'freelance', 'sales', 'gifts'])

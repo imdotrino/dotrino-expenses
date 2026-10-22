@@ -2,7 +2,7 @@
 // reactivo de Vue rompe el postMessage de los iframes. Aquí solo hay datos planos.
 import { reactive } from 'vue'
 import { getStore } from './services/store.js'
-import { listRecurring, listCustomCategories, readPrefs, isMovementsThread, isSettingsThread } from './lib/repo.js'
+import { listRecurring, listCustomCategories, readPrefs, listInbox, isMovementsThread, isSettingsThread, isInboxThread } from './lib/repo.js'
 import { allCategories, categoryLabel, findCategory } from './lib/categories.js'
 import { formatMoney } from './lib/money.js'
 import { lang, errorText } from './i18n.js'
@@ -19,6 +19,8 @@ export const state = reactive({
   // La IA del usuario: si hay y de quién (nunca la llave, ver lib/ai.js), y si no abrió, por qué.
   ai: { configured: false },
   aiError: null,
+  // La bandeja «Por confirmar»: lo que llegó del correo y espera una decisión.
+  inbox: [],
   // Sube cuando llegan movimientos de la bóveda: el mes abierto lo mira para recargarse.
   movementsVersion: 0,
   toast: null,
@@ -53,6 +55,7 @@ export async function boot () {
     watchBackup(store)
     await refreshSettings()
     await refreshAi()
+    await refreshInbox()
   } catch (e) {
     console.error('[expenses] boot:', e)
     state.bootError = e
@@ -72,6 +75,12 @@ function watchBackup (store) {
     if (status.state !== 'synced' || status.changed.length === 0) return
     // Lo que llegó de otro aparato: se recarga lo que cambió, no la app entera.
     if (status.changed.some(isMovementsThread)) state.movementsVersion++
+    if (status.changed.some(isInboxThread)) {
+      refreshInbox().catch((e) => {
+        console.error('[expenses] refresh inbox after vault sync:', e)
+        toast(errorText(e), 'error')
+      })
+    }
     if (status.changed.some(isSettingsThread)) {
       refreshSettings().then(refreshAi).catch((e) => {
         console.error('[expenses] refresh after vault sync:', e)
@@ -92,6 +101,10 @@ export async function refreshSettings () {
   state.recurring = recurring
   state.customCategories = customCategories
   state.prefs = prefs
+}
+
+export async function refreshInbox () {
+  state.inbox = await listInbox()
 }
 
 /**

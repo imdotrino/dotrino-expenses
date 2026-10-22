@@ -151,6 +151,14 @@ Orden de llegada, de lo más simple a lo más cómodo:
    (lo crea el dueño en Google Cloud); la PWA lee el buzón con el token en memoria. Se dice en
    pantalla que la app habla con Google directo.
 
+**Hecho (2026-10-22): pegar a mano.** Pestaña «Por confirmar»: se pega el aviso (texto o HTML),
+lo lee la IA del usuario si la hay o el **lector genérico** (`src/lib/mail.js`: el importe de la
+operación y no el saldo, entró o salió, comercio, fecha, banco), y queda en `expenses.inbox` con
+id `mail:<huella SHA-256 del texto>`. Aceptar, Revisar (el formulario) o Descartar; lo aceptado o
+descartado se queda con su `status`, así que el mismo correo no vuelve a entrar. No hay
+parsers por banco todavía: los avisos de prueba están escritos a mano, y uno real que no se lea
+bien entra como caso de prueba.
+
 Los parsers de banco son **puros y con prueba** (`test/mail/*.test.js` con correos de ejemplo
 anonimizados): un correo real que no entra es un caso de prueba nuevo, no un parche.
 

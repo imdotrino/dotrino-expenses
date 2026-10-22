@@ -5,6 +5,8 @@
 //                                { id: 'category:<key>', … }    una categoría propia
 //                                { id: 'prefs', … }             preferencias
 //                                { id: 'ai', provider, envelope } la llave de IA, SELLADA (lib/ai.js)
+//   expenses.inbox               { id: 'mail:<huella>', status, movement, … }  lo que llegó del correo
+//                                y espera que el usuario lo acepte o lo descarte
 //
 // Escribir con el mismo id actualiza la entrada (el almacén fusiona por id).
 
@@ -19,6 +21,7 @@ const RECURRING_PREFIX = 'recurring:'
 const CATEGORY_PREFIX = 'category:'
 const PREFS = 'prefs'
 const AI = 'ai'
+const INBOX = 'expenses.inbox'
 
 // dictation: 'off' | 'local' (Whisper en el aparato) | 'provider' (la IA del usuario). Apagado
 // hasta que el usuario lo encienda: la voz no sale de ningún lado sin que lo decida.
@@ -34,6 +37,10 @@ export function isMovementsThread (key) {
 
 export function isSettingsThread (key) {
   return key === SETTINGS
+}
+
+export function isInboxThread (key) {
+  return key === INBOX
 }
 
 // Lo que llega de Vue puede ser un Proxy reactivo, y postMessage no lo clona.
@@ -180,4 +187,45 @@ export async function saveAiRecord ({ provider, envelope }) {
 
 export async function removeAiRecord () {
   return removeSetting(AI)
+}
+
+// ---------- la bandeja «Por confirmar» (lo que llega del correo) ----------
+//
+// El id es la huella del correo: el mismo aviso no entra dos veces, y uno descartado no vuelve
+// (se queda con `status: 'discarded'` en vez de borrarse). Aceptar guarda el movimiento y deja
+// la entrada `accepted` con el id del movimiento.
+
+export async function listInbox () {
+  const store = await getStore()
+  return (await store.listThread(INBOX)).filter((e) => e.status === 'pending').sort((a, b) => b.ts - a.ts)
+}
+
+/**
+ * @param {{ fingerprint:string, source:'paste'|'imap'|'gmail', movement:object, bank?:string, excerpt?:string, engine:'rules'|'ai' }} item
+ * @returns {Promise<{ added: boolean, status?: string }>} `added: false` si ese correo ya estaba
+ */
+export async function addToInbox ({ fingerprint, source, movement, bank = '', excerpt = '', engine }) {
+  const store = await getStore()
+  const id = `mail:${fingerprint}`
+  const existing = (await store.listThread(INBOX)).find((e) => e.id === id)
+  if (existing) return { added: false, status: existing.status }
+  const problems = validateMovement(movement)
+  if (problems.length) throw codeError('bad-movement', `invalid movement from mail: ${problems.join(', ')}`, { problems })
+  await store.appendMessage(INBOX, plain({ id, ts: Date.now(), status: 'pending', source, engine, bank, excerpt: excerpt.slice(0, 600), movement }))
+  return { added: true }
+}
+
+/** Acepta (con lo que el usuario haya corregido): guarda el movimiento y cierra la entrada. */
+export async function acceptInboxItem (item, movement = item.movement) {
+  const saved = await saveMovement({ ...movement, source: 'mail', pending: false })
+  const store = await getStore()
+  await store.appendMessage(INBOX, plain({ ...item, status: 'accepted', movementId: saved.id, ts: Date.now() }))
+  return saved
+}
+
+/** Cierra la entrada sin guardar nada: `discarded`, o `accepted` si el movimiento ya lo guardó el formulario. */
+export async function closeInboxItem (item, status) {
+  if (status !== 'discarded' && status !== 'accepted') throw codeError('bad-inbox-status', `unknown inbox status: ${status}`)
+  const store = await getStore()
+  await store.appendMessage(INBOX, plain({ ...item, status, ts: Date.now() }))
 }

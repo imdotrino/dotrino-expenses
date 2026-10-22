@@ -68,6 +68,7 @@ p { margin: .25rem 0; }
   user-select: none;
 }
 .tab[aria-selected="true"] { background: var(--primary-container); color: var(--on-primary-container); }
+.tab .badge { display: inline-block; min-width: 1.2rem; margin-left: .35rem; padding: 0 .35rem; border-radius: 999px; background: var(--dt-accent); color: var(--dt-accent-ink); font-size: .75rem; line-height: 1.2rem; text-align: center; }
 @media (max-width: 640px) {
   .tabs { flex-wrap: wrap; gap: .15rem; padding: 0 .5rem; overflow-x: visible; }
   .tab { padding: .45rem .7rem; font-size: .9rem; }
