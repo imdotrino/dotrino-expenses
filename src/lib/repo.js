@@ -5,6 +5,7 @@
 //                                { id: 'category:<key>', … }    una categoría propia
 //                                { id: 'prefs', … }             preferencias
 //                                { id: 'ai', provider, envelope } la llave de IA, SELLADA (lib/ai.js)
+//                                { id: 'mail-cursor:<agente>', cursor } hasta dónde se leyó el buzón
 //   expenses.inbox               { id: 'mail:<huella>', status, movement, … }  lo que llegó del correo
 //                                y espera que el usuario lo acepte o lo descarte
 //
@@ -228,4 +229,17 @@ export async function closeInboxItem (item, status) {
   if (status !== 'discarded' && status !== 'accepted') throw codeError('bad-inbox-status', `unknown inbox status: ${status}`)
   const store = await getStore()
   await store.appendMessage(INBOX, plain({ ...item, status, ts: Date.now() }))
+}
+
+// ---------- hasta dónde se leyó el buzón, por agente ----------
+
+const CURSOR_PREFIX = 'mail-cursor:'
+
+export async function readMailCursor (agentSub) {
+  const entry = (await settings()).find((e) => e.id === CURSOR_PREFIX + agentSub)
+  return entry?.cursor || null
+}
+
+export async function saveMailCursor (agentSub, cursor) {
+  await writeSetting(CURSOR_PREFIX + agentSub, { cursor })
 }

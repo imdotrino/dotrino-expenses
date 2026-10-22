@@ -147,7 +147,12 @@ Orden de llegada, de lo más simple a lo más cómodo:
    y uno genérico con `@dotrino/ai` **en el agente**, con la llave del usuario) y los manda
    **sellados** por la sesión E2E a la PWA. Cumple el estándar de agentes: `info`, `--name`,
    `@dotrino/update`, `@dotrino/compat`, `release.yml` con `roadmap check`.
-3. **Gmail por OAuth desde el navegador**: solo Gmail, hace falta un cliente OAuth de Google
+3. ~~**Gmail por OAuth desde el navegador**~~ — **DESCARTADO por ahora** (dueño, 2026-10-22).
+   Leer Gmail pide el permiso `gmail.readonly`, que Google clasifica como restringido: una app
+   pública necesita verificación y una auditoría de seguridad de pago; sin eso, 100 usuarios de
+   prueba y una pantalla de advertencia. Gmail ya entra por el agente con una contraseña de
+   aplicación. Se retoma si hace falta leer el correo sin PC. Lo que decía el plan:
+   **Gmail por OAuth desde el navegador**: solo Gmail, hace falta un cliente OAuth de Google
    (lo crea el dueño en Google Cloud); la PWA lee el buzón con el token en memoria. Se dice en
    pantalla que la app habla con Google directo.
 
@@ -158,6 +163,16 @@ id `mail:<huella SHA-256 del texto>`. Aceptar, Revisar (el formulario) o Descart
 descartado se queda con su `status`, así que el mismo correo no vuelve a entrar. No hay
 parsers por banco todavía: los avisos de prueba están escritos a mano, y uno real que no se lea
 bien entra como caso de prueba.
+
+**Hecho (2026-10-22): el agente del PC** (`@dotrino/expenses-agent`, repo
+`dotrino-expenses-agent`). Más simple que el plan: el agente **no lee ni guarda nada por su
+cuenta**. La PWA, al abrir «Por confirmar», busca los agentes encendidos (`probeAgents`, `kind:
+'expenses-agent'`), abre sesión y pide `pull` con el cursor (`{ uidValidity, uid }`) que guarda en
+`expenses.settings` como `mail-cursor:<agente>`; el agente lee por IMAP lo nuevo y lo devuelve. El
+correo pasa por el mismo lector que el pegado (`src/lib/inbox.js`) y la huella es el Message-ID.
+Las credenciales las sube el agente a su cajón (`setup` → `storeVars`) y las pide en cada lectura.
+Probado de punta a punta en `dotrino-test` (`npm run smoke:expenses-mail`: bóveda, agente,
+GreenMail y la PWA en Chromium).
 
 Los parsers de banco son **puros y con prueba** (`test/mail/*.test.js` con correos de ejemplo
 anonimizados): un correo real que no entra es un caso de prueba nuevo, no un parche.

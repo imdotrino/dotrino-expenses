@@ -4,7 +4,7 @@
 // tal cual (anonimizado) y se arregla el lector.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseBankMail, mailText, mailFingerprint } from '../src/lib/mail.js'
+import { parseBankMail, mailText, mailFingerprint, messageIdFingerprint } from '../src/lib/mail.js'
 
 const today = '2026-10-21'
 const parse = (t) => parseBankMail(t, { today })
@@ -82,4 +82,12 @@ test('the same mail gives the same fingerprint, spacing aside', async () => {
   const b = await mailFingerprint('consumo por usd 12,50 en kfc\n')
   assert.equal(a, b)
   assert.notEqual(a, await mailFingerprint('Consumo por USD 12,51 en KFC'))
+})
+
+test('two mails from the mailbox never share a fingerprint (Message-IDs come in <…>)', async () => {
+  const a = await messageIdFingerprint('<a@bank.ec>')
+  const b = await messageIdFingerprint('<CAF=xyz@gmail.com>')
+  assert.notEqual(a, b)
+  assert.equal(a, await messageIdFingerprint(' <a@bank.ec> '))
+  await assert.rejects(messageIdFingerprint(''))
 })

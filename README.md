@@ -19,7 +19,7 @@ Este README es para quien desarrolla. El diseño y las fases están en [`docs/DI
 | F1 | movimientos, calendario, recurrentes, resumen por categoría, CSV, frase libre por reglas | **hecho** |
 | F2 | llave de IA del usuario (`@dotrino/ai`): la frase la entiende su modelo, resumen del mes en palabras | **hecho** |
 | F3 | dictado (`@dotrino/dictation`): Whisper en el aparato o el proveedor del usuario, a elegir en Ajustes | **hecho** |
-| F4 | correo: pegar a mano (**hecho**: bandeja «Por confirmar»), agente IMAP en el PC (`@dotrino/expenses-agent`), Gmail por OAuth | en curso |
+| F4 | correo: pegar a mano y el agente IMAP del PC (`@dotrino/expenses-agent`), a la bandeja «Por confirmar». Gmail por OAuth, descartado por ahora | **hecho** |
 | F5 | recordatorios, wiki, salir de «En desarrollo» | pendiente |
 
 ## Cómo funciona

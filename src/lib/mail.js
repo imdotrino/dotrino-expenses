@@ -145,9 +145,23 @@ export function parseBankMail (raw, { today = localDay() } = {}) {
   return { amount: amount.cents, type, category: category || FALLBACK[type], note: merchant, date, bank, hints }
 }
 
-/** Una huella del correo para no meter dos veces el mismo en la bandeja. */
+/** Una huella del correo pegado (por su texto) para no meter dos veces el mismo en la bandeja. */
 export async function mailFingerprint (raw) {
-  const data = new TextEncoder().encode(mailText(raw).replace(/\s+/g, ' ').toLowerCase())
-  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', data))
+  return digest(mailText(raw).replace(/\s+/g, ' ').toLowerCase())
+}
+
+/**
+ * La huella de un correo traído del buzón, por su Message-ID. TAL CUAL: el id va entre `<…>`,
+ * y pasarlo por `mailText` (que quita etiquetas) lo dejaba vacío, así que todos los correos
+ * tenían la misma huella y solo entraba el primero.
+ */
+export async function messageIdFingerprint (id) {
+  const clean = String(id || '').trim()
+  if (!clean) throw new Error('messageIdFingerprint: empty message id')
+  return digest(`message-id ${clean}`)
+}
+
+async function digest (text) {
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))
   return Array.from(hash.slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('')
 }

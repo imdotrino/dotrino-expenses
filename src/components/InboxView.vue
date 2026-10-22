@@ -3,13 +3,14 @@
 // del usuario si la hay, si no con el lector genérico) y queda en la bandeja hasta que el
 // usuario lo acepta, lo corrige o lo descarta. Nada de esto entra solo al registro.
 import { ref } from 'vue'
-import { t, lang, errorText, formatDate } from '../i18n.js'
-import { state, categories, categoryName, categoryIcon, money, refreshInbox, toast } from '../state.js'
+import { t, errorText, formatDate } from '../i18n.js'
+import { state, categoryName, categoryIcon, money, refreshInbox, toast } from '../state.js'
 import { addToInbox, acceptInboxItem, closeInboxItem } from '../lib/repo.js'
-import { parseBankMail, mailText, mailFingerprint } from '../lib/mail.js'
-import { parseMailWithAi } from '../lib/ai.js'
-import { dayToDate, localDay } from '../lib/dates.js'
+import { mailText, mailFingerprint } from '../lib/mail.js'
+import { proposeFromMail } from '../lib/inbox.js'
+import { dayToDate } from '../lib/dates.js'
 import MovementForm from './MovementForm.vue'
+import MailboxCard from './MailboxCard.vue'
 
 const info = ref(false)
 const pasted = ref('')
@@ -25,25 +26,8 @@ async function read () {
   busy.value = true
   try {
     const text = mailText(raw)
-    const today = localDay()
-    let found = null
-    let engine = 'rules'
-    if (state.ai.configured) {
-      try {
-        found = await parseMailWithAi(text, { today, categories: categories(), lang: lang.value })
-        engine = 'ai'
-      } catch (e) {
-        console.error('[expenses] ai mail parse:', e)
-        toast(t('ai.fellBack', { label: state.ai.label, reason: errorText(e) }), 'error')
-      }
-    }
-    if (engine === 'rules') {
-      const parsed = parseBankMail(text, { today })
-      if (parsed) {
-        const { hints, ...rest } = parsed
-        found = rest
-      }
-    }
+    const { found, engine, aiError } = await proposeFromMail(text)
+    if (aiError) toast(t('ai.fellBack', { label: state.ai.label, reason: errorText(aiError) }), 'error')
     if (!found) {
       problem.value = t('inbox.noMovement')
       return
@@ -107,6 +91,7 @@ async function onReviewed () {
 
 <template>
   <section class="stack" data-testid="inbox-view">
+    <MailboxCard />
     <div class="card stack">
       <h2 class="label-row">
         <span>{{ t('inbox.pasteTitle') }}</span>
