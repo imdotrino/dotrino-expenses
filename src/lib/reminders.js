@@ -11,25 +11,19 @@
 // Funciones puras arriba; abajo, la sincronización con el proxio.
 
 import { appliesTo } from './recurring.js'
-import { dayInMonth, shiftMonth } from './dates.js'
+import { dayInMonth, shiftMonth, shiftDay } from './dates.js'
 
 export const SOON_DAYS = 3
 export const PUSH_HORIZON_DAYS = 45
 export const PUSH_HOUR = 9
 export const APP = 'expenses'
 
-function addDays (day, n) {
-  const d = new Date(`${day}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
 /**
  * Lo pendiente de un mes que pide atención: vencido, de hoy, o de los próximos `days` días.
  * @returns {{ overdue: object[], today: object[], soon: object[] }}
  */
 export function dueItems (movements, today, days = SOON_DAYS) {
-  const limit = addDays(today, days)
+  const limit = shiftDay(today, days)
   const pending = movements.filter((m) => m.pending).sort((a, b) => a.date.localeCompare(b.date))
   return {
     overdue: pending.filter((m) => m.date < today),
@@ -45,7 +39,7 @@ export function dueItems (movements, today, days = SOON_DAYS) {
  * @returns {string[]} 'aaaa-mm-dd', ordenados y sin repetir
  */
 export function reminderDays (rules, from, days, resolved = []) {
-  const until = addDays(from, days)
+  const until = shiftDay(from, days)
   const done = new Set(resolved.filter((m) => m.recurringId && !m.pending).map((m) => `${m.recurringId}@${m.date.slice(0, 7)}`))
   const out = new Set()
   for (let month = from.slice(0, 7); month <= until.slice(0, 7); month = shiftMonth(month, 1)) {

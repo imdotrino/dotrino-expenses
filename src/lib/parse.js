@@ -6,7 +6,7 @@
 // guarda nada sin que el usuario lo vea.
 
 import { parseAmount } from './money.js'
-import { localDay } from './dates.js'
+import { localDay, shiftDay } from './dates.js'
 import { FALLBACK } from './categories.js'
 
 const INCOME_WORDS = /\b(ingreso|ingres[oé]|cobr[eéo]|cobr[ao]|me pagaron|pago recibido|recib[ií]|sueldo|salario|quincena|venta|vend[ií]|income|salary|received|paid me|earned|sold|deposit)\b/i
@@ -130,8 +130,4 @@ export function parseMovement (text, { today = localDay() } = {}) {
   return { amount, type, category, note, date, hints }
 }
 
-function shiftDay (day, delta) {
-  const d = new Date(`${day}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + delta)
-  return d.toISOString().slice(0, 10)
-}
+

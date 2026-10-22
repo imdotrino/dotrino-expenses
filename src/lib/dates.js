@@ -21,6 +21,13 @@ export function shiftMonth (month, delta) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`
 }
 
+/** 'aaaa-mm-dd' movido `delta` días (por UTC al mediodía: el cambio de hora no lo mueve). */
+export function shiftDay (day, delta) {
+  const d = new Date(`${day}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + delta)
+  return d.toISOString().slice(0, 10)
+}
+
 export function daysInMonth (month) {
   const [y, m] = month.split('-').map(Number)
   return new Date(Date.UTC(y, m, 0)).getUTCDate()
