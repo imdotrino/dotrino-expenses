@@ -28,7 +28,13 @@ let loaded = false
 export function aiStatus () {
   if (!config) return { configured: false }
   const preset = PROVIDERS[config.provider]
-  return { configured: true, provider: config.provider, label: preset?.label || config.provider, model: config.model || preset?.model || '' }
+  return {
+    configured: true,
+    provider: config.provider,
+    label: preset?.label || config.provider,
+    model: config.model || preset?.model || '',
+    canTranscribe: makeClient(config).info.canTranscribe,
+  }
 }
 
 /** Abre la configuración guardada. Sin registro, no hay IA; un registro que no abre se dice. */
@@ -131,6 +137,13 @@ export async function parseWithAi (text, { today, categories, lang }) {
   ].join('\n')
   const answer = await ai.askJson({ system, prompt: text, schema, maxTokens: 300, temperature: 0, effort: 'low' })
   return checkMovement(answer, { today, categories })
+}
+
+// ---------- la voz → texto (el dictado con el proveedor) ----------
+
+/** Lo que pasa <dotrino-dictation engine="provider"> como `.transcriber`. */
+export async function transcribeWithAi (audio, { language } = {}) {
+  return client().transcribe(audio, { language })
 }
 
 // ---------- el mes en palabras ----------

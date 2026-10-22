@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dotrino/ai": "0.1.1",
+    "@dotrino/dictation": "0.1.1",
     "@dotrino/identity": "0.121.5",
     "@dotrino/install": "0.3.3",
     "@dotrino/nav": "0.3.0",

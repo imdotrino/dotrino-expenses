@@ -41,13 +41,23 @@ const DATE_WORDS = [
 // (12/10) ni parte de una palabra (mp3). Admite un signo delante.
 const AMOUNT = /(?<![\w/.,])([+-])?\$?\s?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\w/]|[.,]\d)/
 
+// Un importe dicho en voz alta, como lo deja el dictado: «4 dólares con 50», «4 con 50
+// centavos», «12 dollars and 30 cents». Solo con la moneda o los centavos dichos: «4 con 2
+// amigos» no es un importe.
+const SPOKEN_AMOUNT = /(\d+)\s*(?:(?:d[oó]lares?|dollars?|usd)\s*(?:con|y|and)\s*(\d{1,2})(?:\s*(?:centavos?|cents?))?|(?:con|y|and)\s*(\d{1,2})\s*(?:centavos?|cents?))\b/i
+const CURRENCY_WORDS = /\b(d[oó]lares?|dollars?|usd)\b/gi
+
+function normalizeSpoken (text) {
+  return text.replace(SPOKEN_AMOUNT, (_, units, c1, c2) => `${units}.${String(c1 ?? c2).padStart(2, '0')}`)
+}
+
 /**
  * @param {string} text
  * @param {{ today?: string }} [opts]  'aaaa-mm-dd' que cuenta como hoy (para probar)
  * @returns {null | { amount:number, type:'expense'|'income', category:string, note:string, date:string, hints:string[] }}
  */
 export function parseMovement (text, { today = localDay() } = {}) {
-  const src = String(text || '').trim()
+  const src = normalizeSpoken(String(text || '').trim())
   if (!src) return null
   const m = AMOUNT.exec(src)
   if (!m) return null
@@ -106,6 +116,7 @@ export function parseMovement (text, { today = localDay() } = {}) {
 
   const note = rest
     .replace(/\b(hoy|today|ayer|yesterday|anteayer|antier)\b/gi, ' ')
+    .replace(CURRENCY_WORDS, ' ')
     .replace(/\s+/g, ' ')
     .replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '')
     .trim()

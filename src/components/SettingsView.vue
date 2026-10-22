@@ -7,6 +7,7 @@ import { savePrefs, saveCustomCategory, removeCustomCategory } from '../lib/repo
 import { DEFAULT_CATEGORIES, categoryLabel, slugify } from '../lib/categories.js'
 import BackupCard from './BackupCard.vue'
 import AiCard from './AiCard.vue'
+import DictationCard from './DictationCard.vue'
 
 const CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'PEN', 'ARS', 'CLP', 'BRL', 'GBP']
 
@@ -68,6 +69,7 @@ async function remove (c) {
   <section class="stack" data-testid="settings-view">
     <BackupCard />
     <AiCard />
+    <DictationCard />
 
     <section class="card stack">
       <h2>{{ t('settings.currency') }}</h2>

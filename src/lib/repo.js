@@ -20,7 +20,9 @@ const CATEGORY_PREFIX = 'category:'
 const PREFS = 'prefs'
 const AI = 'ai'
 
-export const DEFAULT_PREFS = Object.freeze({ currency: 'USD' })
+// dictation: 'off' | 'local' (Whisper en el aparato) | 'provider' (la IA del usuario). Apagado
+// hasta que el usuario lo encienda: la voz no sale de ningún lado sin que lo decida.
+export const DEFAULT_PREFS = Object.freeze({ currency: 'USD', dictation: 'off' })
 
 export function movementsThread (month) {
   return MOVEMENTS_PREFIX + month

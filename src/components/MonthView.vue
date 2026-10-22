@@ -10,7 +10,8 @@ import { ensureRecurring, saveMovement, removeMovement } from '../lib/repo.js'
 import { monthTotals, dayTotals } from '../lib/summary.js'
 import { localMonth, localDay, shiftMonth, daysInMonth, firstWeekdayMonday, dayToDate } from '../lib/dates.js'
 import { parseMovement } from '../lib/parse.js'
-import { parseWithAi } from '../lib/ai.js'
+import { parseWithAi, transcribeWithAi } from '../lib/ai.js'
+import '@dotrino/dictation'
 import MovementForm from './MovementForm.vue'
 
 const MONTH_KEY = 'expenses.month'
@@ -24,6 +25,24 @@ const formOpen = ref(false)
 const quick = ref('')
 const quickProblem = ref('')
 const quickBusy = ref(false)
+const mic = ref(null)
+const micStatus = ref({ text: '', error: null })   // lo que dice el micrófono, bajo el cuadro
+
+// El dictado, según Ajustes. «Con tu IA» solo si la IA guardada sabe transcribir; si no, no hay
+// micrófono (Ajustes dice por qué).
+const dictation = computed(() => {
+  const mode = state.prefs.dictation
+  if (mode === 'local') return 'local'
+  if (mode === 'provider' && state.ai.configured && state.ai.canTranscribe) return 'provider'
+  return ''
+})
+watch([mic, dictation], () => { if (mic.value) mic.value.transcriber = transcribeWithAi })
+
+// Lo dictado cae en el cuadro y se entiende igual que lo escrito: el usuario lo revisa siempre.
+function fromDictation (e) {
+  quick.value = e.detail.text
+  fromQuick()
+}
 
 useBackLayer(formOpen)
 
@@ -204,10 +223,12 @@ onMounted(load)
         <span>{{ t('month.quick') }}</span>
         <div class="row">
           <input v-model="quick" class="grow" :placeholder="t('month.quickPlaceholder')" data-testid="quick-input" @keydown.enter.prevent="fromQuick" />
+          <dotrino-dictation v-if="dictation" ref="mic" :engine="dictation" :lang="lang" data-testid="dictation" @dotrino-dictation-text="fromDictation" @dotrino-dictation-status="micStatus = $event.detail"></dotrino-dictation>
           <button type="button" class="btn primary" :disabled="!quick.trim() || quickBusy" data-testid="quick-go" @click="fromQuick">{{ quickBusy ? '…' : '→' }}</button>
         </div>
       </label>
       <p v-if="quickProblem" class="problem" data-testid="quick-problem">{{ quickProblem }}</p>
+      <p v-else-if="dictation && micStatus.text" :class="micStatus.error ? 'problem' : 'info-text'" role="status" data-testid="mic-status">{{ micStatus.text }}</p>
       <p v-else class="info-text">
         {{ quickBusy ? t('ai.thinking') : t('month.quickHelp') }}
         <span class="chip" data-testid="quick-engine">{{ state.ai.configured ? t('ai.usingAi', { label: state.ai.label }) : t('ai.usingRules') }}</span>
@@ -248,3 +269,8 @@ onMounted(load)
     <MovementForm v-if="formOpen" :movement="editing" @saved="onSaved" @removed="onSaved" @close="formOpen = false" />
   </section>
 </template>
+
+<style scoped>
+/* El estado del micrófono va bajo el cuadro (mic-status), no apretando la fila. */
+dotrino-dictation::part(status) { display: none; }
+</style>

@@ -119,6 +119,22 @@ pequeño que se descarga una vez (~40–75 MB) con aviso y se cachea; todo en el
 **proveedor**: `transcribe` de `@dotrino/ai` con la llave del usuario. El componente no decide:
 le dicen cuál (`engine="local|provider"`), y la app lo saca de Ajustes.
 
+**Hecho así** (2026-10-21):
+
+- Modelo `onnx-community/whisper-base` en 8 bits (encoder 23 MB + decoder 54 MB), en un
+  **worker** y por WASM de un solo hilo (Pages no deja poner las cabeceras de aislamiento).
+  Una frase de 4 s se transcribe en ~3 s en un portátil. `whisper-tiny` entiende mal el
+  español y `whisper-small` pesa ~250 MB.
+- El runtime de ONNX (`.wasm`, 14 MB) lo sirve la app desde sus assets: la librería lo bajaría
+  de jsDelivr. La caché del modelo y del runtime es la Cache API del navegador, así que el
+  dictado local funciona sin conexión una vez bajado.
+- `prefs.dictation`: `off` (por defecto) · `local` · `provider`. «Con tu IA» se ve siempre y
+  sale deshabilitada con el motivo si no hay IA o el proveedor no transcribe.
+- Lo dictado cae en el cuadro de frases y sigue el mismo camino que lo escrito (IA o reglas),
+  así que se revisa siempre. El parser entiende el importe hablado («4 dólares con 50»).
+- Whisper base no acierta cada palabra (en la prueba oye «al muerto» por «almuerzo»); el
+  importe sí. Por eso el usuario revisa.
+
 ### F4 — correo
 
 Orden de llegada, de lo más simple a lo más cómodo:

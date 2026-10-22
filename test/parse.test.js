@@ -52,3 +52,13 @@ test('without an amount there is no movement; unknown words fall to the other ca
   assert.equal(parse('cosa rara 7').category, 'other-expense')
   assert.equal(parse('ingreso 7 raro').category, 'other-income')
 })
+
+test('amounts as dictation leaves them', () => {
+  const m = parse('al muerto, 4 dólares con 50.')
+  assert.equal(m.amount, 450)
+  assert.equal(m.note, 'al muerto')
+  assert.equal(parse('taxi 3 con 5 centavos').amount, 305)
+  assert.equal(parse('lunch 12 dollars and 30 cents').amount, 1230)
+  assert.equal(parse('gasolina 20 dólares').amount, 2000)
+  assert.equal(parse('almuerzo 4 con 2 amigos').amount, 400)
+})

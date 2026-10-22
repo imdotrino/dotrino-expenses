@@ -63,6 +63,10 @@ export default defineConfig(({ command }) => ({
       },
     }),
   ],
+  // @dotrino/dictation corre Whisper en un worker con imports dinámicos: sale como módulo.
+  worker: { format: 'es' },
+  // Pre-empaquetar rompe el `new URL('./worker.js', import.meta.url)` del dictado (solo en dev).
+  optimizeDeps: { exclude: ['@dotrino/dictation', '@huggingface/transformers', 'onnxruntime-web'] },
   server: {
     host: true,
     port: 3150,
