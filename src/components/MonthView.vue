@@ -11,13 +11,12 @@ import { monthTotals, dayTotals } from '../lib/summary.js'
 import { localMonth, localDay, shiftMonth, daysInMonth, firstWeekdayMonday, dayToDate } from '../lib/dates.js'
 import { parseMovement } from '../lib/parse.js'
 import { dueItems } from '../lib/reminders.js'
+import { readOpenMonth, saveOpenMonth } from '../lib/open-month.js'
 import { parseWithAi, transcribeWithAi } from '../lib/ai.js'
 import '@dotrino/dictation'
 import MovementForm from './MovementForm.vue'
 
-const MONTH_KEY = 'expenses.month'
-
-const month = ref(readMonth())
+const month = ref(readOpenMonth())
 const selectedDay = ref(null)      // 'aaaa-mm-dd' o null = todo el mes
 const movements = ref([])
 const loading = ref(false)
@@ -88,14 +87,6 @@ const dayTitle = computed(() => {
   return formatDate(dayToDate(selectedDay.value), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
 })
 
-function readMonth () {
-  try {
-    const v = sessionStorage.getItem(MONTH_KEY)
-    if (/^\d{4}-\d{2}$/.test(v || '')) return v
-  } catch { /* modo privado */ }
-  return localMonth()
-}
-
 async function load () {
   loading.value = true
   try {
@@ -111,7 +102,7 @@ async function load () {
 function go (delta) {
   month.value = shiftMonth(month.value, delta)
   selectedDay.value = null
-  try { sessionStorage.setItem(MONTH_KEY, month.value) } catch { /* modo privado */ }
+  saveOpenMonth(month.value)
 }
 
 function pickDay (day) {

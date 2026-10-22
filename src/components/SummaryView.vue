@@ -1,17 +1,18 @@
 <script setup>
 // El mes en números: totales, por categoría (barras de CSS, sin librería) y frente al mes
 // anterior. Y la salida a CSV.
+import { readOpenMonth, saveOpenMonth } from '../lib/open-month.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import { t, lang, errorText, monthName } from '../i18n.js'
 import { state, money, categoryName, categoryIcon, toast } from '../state.js'
 import { listMovements } from '../lib/repo.js'
 import { monthTotals, byCategory } from '../lib/summary.js'
 import { movementsToCsv, downloadBlob } from '../lib/csv.js'
-import { localMonth, shiftMonth } from '../lib/dates.js'
+import { shiftMonth } from '../lib/dates.js'
 import { toDecimal } from '../lib/money.js'
 import { describeMonth } from '../lib/ai.js'
 
-const month = ref(readMonth())
+const month = ref(readOpenMonth())
 const movements = ref([])
 const previous = ref([])
 const description = ref('')
@@ -31,14 +32,6 @@ const vsPrev = computed(() => {
   return t('summary.same')
 })
 
-function readMonth () {
-  try {
-    const v = sessionStorage.getItem('expenses.month')
-    if (/^\d{4}-\d{2}$/.test(v || '')) return v
-  } catch { /* modo privado */ }
-  return localMonth()
-}
-
 async function load () {
   description.value = ''
   try {
@@ -53,7 +46,7 @@ async function load () {
 
 function go (delta) {
   month.value = shiftMonth(month.value, delta)
-  try { sessionStorage.setItem('expenses.month', month.value) } catch { /* modo privado */ }
+  saveOpenMonth(month.value)
 }
 
 // Al proveedor van solo los totales por categoría (con su nombre), de este mes y del anterior.
