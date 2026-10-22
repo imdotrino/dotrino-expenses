@@ -5,11 +5,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBackLayer } from '@dotrino/nav/vue'
 import { t, tl, lang, errorText, formatDate, monthName } from '../i18n.js'
-import { state, money, categories, categoryName, categoryIcon, toast } from '../state.js'
+import { state, money, categories, categoryName, categoryIcon, toast, refreshReminders } from '../state.js'
 import { ensureRecurring, saveMovement, removeMovement } from '../lib/repo.js'
 import { monthTotals, dayTotals } from '../lib/summary.js'
 import { localMonth, localDay, shiftMonth, daysInMonth, firstWeekdayMonday, dayToDate } from '../lib/dates.js'
 import { parseMovement } from '../lib/parse.js'
+import { dueItems } from '../lib/reminders.js'
 import { parseWithAi, transcribeWithAi } from '../lib/ai.js'
 import '@dotrino/dictation'
 import MovementForm from './MovementForm.vue'
@@ -68,6 +69,19 @@ const visible = computed(() => {
   // Pendientes primero: son lo que pide una decisión. Después por fecha descendente.
   return [...list].sort((a, b) => (Number(!!b.pending) - Number(!!a.pending)) || b.date.localeCompare(a.date) || b.ts - a.ts)
 })
+
+// Lo que vence: solo en el mes en curso (en otro mes «hoy» no dice nada).
+const due = computed(() => {
+  if (month.value !== today.value.slice(0, 7)) return null
+  const d = dueItems(movements.value, today.value)
+  return d.overdue.length || d.today.length || d.soon.length ? d : null
+})
+
+function dueWhen (m) {
+  if (m.date === today.value) return t('reminders.today')
+  if (m.date < today.value) return t('reminders.overdue')
+  return formatDate(dayToDate(m.date), { weekday: 'long', day: 'numeric', timeZone: 'UTC' })
+}
 
 const dayTitle = computed(() => {
   if (!selectedDay.value) return t('month.allMonth')
@@ -161,6 +175,7 @@ async function confirm (m) {
     await saveMovement({ ...m, pending: false })
     toast(t('form.confirmed'))
     await load()
+    refreshReminders()
   } catch (e) {
     console.error('[expenses] confirm:', e)
     toast(errorText(e), 'error')
@@ -172,6 +187,7 @@ async function discard (m) {
     await removeMovement(m)
     toast(t('form.removed'))
     await load()
+    refreshReminders()
   } catch (e) {
     console.error('[expenses] discard:', e)
     toast(errorText(e), 'error')
@@ -197,6 +213,16 @@ onMounted(load)
       <div class="total"><span>{{ t('month.balance') }}</span><strong data-testid="total-balance">{{ money(totals.balance, { signed: true }) }}</strong></div>
     </div>
     <p v-if="totals.pending" class="banner warn small" data-testid="pending-banner">{{ t('month.pending', { count: totals.pending }) }}</p>
+    <div v-if="due" class="card due" role="status" data-testid="due-banner">
+      <strong>{{ t('reminders.title') }}</strong>
+      <ul>
+        <li v-for="m in [...due.overdue, ...due.today, ...due.soon]" :key="m.id" :class="{ late: m.date < today }">
+          <button type="button" class="linkish" :data-due-id="m.id" data-testid="due-item" @click="selectedDay = m.date">
+            {{ categoryIcon(m.category) }} {{ m.note || categoryName(m.category) }} · {{ money(m.amount) }} · {{ dueWhen(m) }}
+          </button>
+        </li>
+      </ul>
+    </div>
 
     <div class="card">
       <div class="calendar" role="grid">
@@ -271,6 +297,11 @@ onMounted(load)
 </template>
 
 <style scoped>
+.due { border-left: 4px solid var(--dt-gold, #c9a227); }
+.due ul { list-style: none; margin: .4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; }
+.due .late .linkish { color: var(--dt-error, #b3261e); }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.linkish:hover { text-decoration: underline; }
 /* El estado del micrófono va bajo el cuadro (mic-status), no apretando la fila. */
 dotrino-dictation::part(status) { display: none; }
 </style>

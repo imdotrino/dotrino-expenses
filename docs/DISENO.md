@@ -177,6 +177,19 @@ GreenMail y la PWA en Chromium).
 Los parsers de banco son **puros y con prueba** (`test/mail/*.test.js` con correos de ejemplo
 anonimizados): un correo real que no entra es un caso de prueba nuevo, no un parche.
 
+### F5 — recordatorios (hecho 2026-10-22)
+
+- **En la app**: arriba del mes en curso, lo por confirmar que venció, vence hoy o en los
+  próximos 3 días (`src/lib/reminders.js`, `dueItems`). Sin nada más.
+- **Con la app cerrada**, opt-in **por aparato** (la suscripción al push es del aparato): un
+  timbre a las 9:00 del día de cada pago de los próximos 45 días, programado en el proxio con
+  `schedulePush` a la llave del perfil. **No hace falta el agente**: el plan pensaba que sí, y el
+  proxio ya sabía programar timbres a la llave propia. Para que no sonara en las demás apps del
+  perfil se extendió el pilar: proxio 1.9.0 guarda la `app` del recordatorio y proxy-client
+  0.40.0 la manda (antes sonaba en todas). El aviso dice «Tienes un pago o un cobro para hoy»: ni
+  nombre ni importe pasan por el proxio. Se reprograma al abrir la app, al cambiar una regla y
+  al confirmar o descartar un pendiente (borra los de esta app y pone los nuevos).
+
 ## 5. Lo que queda fuera (de momento)
 
 - Versiones nativas: solo cuando el dueño la califique (CONVENCIONES §16).

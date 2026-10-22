@@ -56,6 +56,9 @@ export default defineConfig(({ command }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // El timbre de los recordatorios (Web Push del ecosistema): los handlers van DENTRO de
+        // este service worker, que es el único de la app (@dotrino/proxy-client, «Caso B»).
+        importScripts: ['dotrino-push-sw.js'],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,

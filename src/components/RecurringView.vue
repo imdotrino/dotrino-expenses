@@ -2,7 +2,7 @@
 // Las reglas de lo que se repite cada mes. Una edición abierta a la vez.
 import { ref, computed } from 'vue'
 import { t, errorText, monthName } from '../i18n.js'
-import { state, money, categoryName, categoryIcon, refreshSettings, toast } from '../state.js'
+import { state, money, categoryName, categoryIcon, refreshSettings, refreshReminders, toast } from '../state.js'
 import { saveRecurring, removeRecurring } from '../lib/repo.js'
 import { validateRule } from '../lib/recurring.js'
 import { parseAmount, toDecimal } from '../lib/money.js'
@@ -57,6 +57,7 @@ async function save () {
   try {
     await saveRecurring(rule)
     await refreshSettings()
+    refreshReminders()
     toast(t('recurring.saved'))
     close()
   } catch (e) {
@@ -73,6 +74,7 @@ async function confirmRemove () {
   try {
     await removeRecurring(rule.id)
     await refreshSettings()
+    refreshReminders()
     toast(t('recurring.removed'))
   } catch (e) {
     console.error('[expenses] remove rule:', e)
