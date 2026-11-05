@@ -15,16 +15,19 @@ const CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'PEN', 'ARS', 'CLP', 'BRL', 'GBP
 const info = ref(false)
 const aboutOpen = ref(false)
 const newName = ref('')
+/** @type {import('vue').Ref<import('../types').CategoryKind>} */
 const newKind = ref('expense')
 const newIcon = ref('')
 const problem = ref('')
 
 const all = computed(() => categories())
+/** @param {import('../types').Category} c */
 const isCustom = (c) => !DEFAULT_CATEGORIES.some((d) => d.key === c.key)
 
+/** @param {Event} e */
 async function changeCurrency (e) {
   try {
-    await savePrefs({ ...state.prefs, currency: e.target.value })
+    await savePrefs({ ...state.prefs, currency: /** @type {HTMLSelectElement} */ (e.target).value })
     await refreshSettings()
     toast(t('settings.saved'))
   } catch (err) {
@@ -54,6 +57,7 @@ async function addCategory () {
   }
 }
 
+/** @param {import('../types').Category} c */
 async function remove (c) {
   try {
     await removeCustomCategory(c.key)

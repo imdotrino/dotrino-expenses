@@ -5,6 +5,8 @@ import { codeError } from './errors.js'
 /**
  * '4.50' · '4,50' · '1.200,50' · '1,200.50' · '$ 12' → centavos (entero, positivo).
  * Un texto sin número, o con un número que no es un importe, lanza `bad-amount`.
+ * @param {unknown} text
+ * @returns {number}
  */
 export function parseAmount (text) {
   const raw = String(text ?? '').trim().replace(/[^\d.,-]/g, '')
@@ -29,14 +31,23 @@ export function parseAmount (text) {
   return negative ? -cents : cents
 }
 
-/** Centavos → '4.50' (texto neutro, para inputs y CSV). */
+/**
+ * Centavos → '4.50' (texto neutro, para inputs y CSV).
+ * @param {number} cents
+ * @returns {string}
+ */
 export function toDecimal (cents) {
   const sign = cents < 0 ? '-' : ''
   const abs = Math.abs(cents)
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`
 }
 
-/** Centavos → '$4.50' en el idioma activo. `currency` es un código ISO ('USD'). */
+/**
+ * Centavos → '$4.50' en el idioma activo. `currency` es un código ISO ('USD').
+ * @param {number} cents
+ * @param {{ lang?: string, currency?: string, signed?: boolean }} [opts]
+ * @returns {string}
+ */
 export function formatMoney (cents, { lang = 'es', currency = 'USD', signed = false } = {}) {
   const locale = lang === 'es' ? 'es-EC' : 'en-US'
   const text = new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 })

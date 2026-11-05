@@ -4,7 +4,7 @@
 import { ref, computed } from 'vue'
 import { LOCAL_MODEL } from '@dotrino/dictation'
 import { t, errorText } from '../i18n.js'
-import { state, refreshSettings, toast } from '../state.js'
+import { state, refreshSettings, toast, aiLabel } from '../state.js'
 import { savePrefs } from '../lib/repo.js'
 
 const info = ref(false)
@@ -12,16 +12,17 @@ const busy = ref(false)
 
 const providerBlock = computed(() => {
   if (!state.ai.configured) return t('dictation.providerNoAi')
-  if (!state.ai.canTranscribe) return t('dictation.providerCannot', { label: state.ai.label })
+  if (!state.ai.canTranscribe) return t('dictation.providerCannot', { label: aiLabel() })
   return ''
 })
 
 const help = computed(() => {
   if (state.prefs.dictation === 'local') return t('dictation.localHelp', { size: LOCAL_MODEL.sizeMB })
-  if (state.prefs.dictation === 'provider') return providerBlock.value || t('dictation.providerHelp', { label: state.ai.label })
+  if (state.prefs.dictation === 'provider') return providerBlock.value || t('dictation.providerHelp', { label: aiLabel() })
   return ''
 })
 
+/** @param {import('../types').Prefs['dictation']} mode */
 async function choose (mode) {
   if (mode === state.prefs.dictation || busy.value) return
   busy.value = true

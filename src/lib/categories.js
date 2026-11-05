@@ -2,6 +2,9 @@
 // Ajustes (van al almacén, ver repo.js); las fijas no se borran, solo se dejan de usar.
 // `kind` dice para qué tipo de movimiento sirve.
 
+/** @typedef {import('../types').Category} Category */
+
+/** @type {readonly Category[]} */
 export const DEFAULT_CATEGORIES = Object.freeze([
   { key: 'food', kind: 'expense', icon: '🍽️', label: { es: 'Comida', en: 'Food' } },
   { key: 'groceries', kind: 'expense', icon: '🛒', label: { es: 'Mercado', en: 'Groceries' } },
@@ -24,25 +27,43 @@ export const DEFAULT_CATEGORIES = Object.freeze([
 
 export const FALLBACK = Object.freeze({ expense: 'other-expense', income: 'other-income' })
 
-/** Fijas + propias, en ese orden; una propia con la misma clave que una fija la reemplaza. */
+/**
+ * Fijas + propias, en ese orden; una propia con la misma clave que una fija la reemplaza.
+ * @param {Category[]} [custom]
+ * @returns {Category[]}
+ */
 export function allCategories (custom = []) {
   const byKey = new Map(DEFAULT_CATEGORIES.map((c) => [c.key, c]))
   for (const c of custom) byKey.set(c.key, c)
   return [...byKey.values()]
 }
 
+/**
+ * @param {Category | null | undefined} category
+ * @param {string} lang
+ * @returns {string}
+ */
 export function categoryLabel (category, lang) {
   if (!category) return ''
   const label = category.label
   if (typeof label === 'string') return label
-  return label?.[lang] || label?.es || label?.en || category.key
+  return (lang === 'es' || lang === 'en' ? label?.[lang] : undefined) || label?.es || label?.en || category.key
 }
 
+/**
+ * @param {string} key
+ * @param {Category[]} [custom]
+ * @returns {Category | null}
+ */
 export function findCategory (key, custom = []) {
   return allCategories(custom).find((c) => c.key === key) || null
 }
 
-/** Clave para una categoría propia: minúsculas, sin acentos ni espacios. */
+/**
+ * Clave para una categoría propia: minúsculas, sin acentos ni espacios.
+ * @param {unknown} name
+ * @returns {string}
+ */
 export function slugify (name) {
   return String(name || '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')

@@ -12,10 +12,15 @@ const emit = defineEmits(['update:modelValue'])
 const options = computed(() => categories()
   .filter((c) => c.kind === props.type || c.kind === 'both')
   .map((c) => ({ key: c.key, text: `${c.icon || '•'} ${categoryLabel(c, lang.value)}` })))
+
+/** @param {Event} e */
+function onChange (e) {
+  emit('update:modelValue', /** @type {HTMLSelectElement} */ (e.target).value)
+}
 </script>
 
 <template>
-  <select :value="modelValue" @change="emit('update:modelValue', $event.target.value)">
+  <select :value="modelValue" @change="onChange">
     <option value="" disabled>—</option>
     <option v-for="o in options" :key="o.key" :value="o.key">{{ o.text }}</option>
   </select>

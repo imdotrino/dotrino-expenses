@@ -10,13 +10,16 @@ import { categoryLabel, FALLBACK } from '../lib/categories.js'
 import { lang } from '../i18n.js'
 import CategorySelect from './CategorySelect.vue'
 
-const props = defineProps({ movement: { type: Object, required: true } })
+const props = defineProps({ movement: { type: /** @type {import('vue').PropType<import('../types').FormMovement>} */ (Object), required: true } })
 const emit = defineEmits(['saved', 'removed', 'close'])
 
+/** @type {import('vue').Ref<import('../types').FormMovement & { amountText: string }>} */
 const form = ref({ ...props.movement, amountText: props.movement.amount ? toDecimal(props.movement.amount) : '' })
+/** @type {import('vue').Ref<string[]>} */
 const problems = ref([])
 const busy = ref(false)
 const removing = ref(false)
+/** @type {import('vue').Ref<HTMLInputElement | null>} */
 const amountInput = ref(null)
 
 const isNew = computed(() => !props.movement.id)
@@ -28,6 +31,7 @@ watch(() => form.value.type, (type) => {
   if (!cat || (cat.kind !== 'both' && cat.kind !== type)) form.value.category = form.value.category ? FALLBACK[type] : ''
 })
 
+/** @returns {import('../types').MovementDraft} */
 function build () {
   let amount
   try {
@@ -57,9 +61,12 @@ async function save () {
 }
 
 async function remove () {
+  const { id, date, recurringId, pending } = props.movement
+  // Solo se ofrece borrar lo que ya está guardado (tiene id).
+  if (!id) throw new Error('cannot remove a movement that was never saved')
   busy.value = true
   try {
-    await removeMovement(props.movement)
+    await removeMovement({ id, date, recurringId, pending })
     toast(t('form.removed'))
     emit('removed')
   } catch (e) {

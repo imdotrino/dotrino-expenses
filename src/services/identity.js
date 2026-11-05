@@ -3,16 +3,21 @@
 // personas en el mismo aparato no mezclan sus gastos) y la llave de IA del usuario se sella
 // con la llave de su cuenta. Sin identidad no se sigue.
 import { Identity } from '@dotrino/identity'
+import { codeError } from '../lib/errors.js'
 
+/** @type {Promise<Identity> | null} */
 let connecting = null
 
+/**
+ * La identidad del ecosistema, conectada una vez. Lanza `identity-unreachable` si el iframe
+ * no contesta (y el siguiente intento vuelve a probar).
+ * @returns {Promise<Identity>}
+ */
 export function getIdentity () {
   if (!connecting) {
     connecting = Identity.connect(identityOptions()).catch((e) => {
       connecting = null
-      const err = new Error(`identity vault unreachable: ${e?.message || e}`, { cause: e })
-      err.code = 'identity-unreachable'
-      throw err
+      throw codeError('identity-unreachable', `identity vault unreachable: ${e?.message || e}`, { cause: e })
     })
   }
   return connecting

@@ -4,7 +4,7 @@
 // usuario lo acepta, lo corrige o lo descarta. Nada de esto entra solo al registro.
 import { ref } from 'vue'
 import { t, errorText, formatDate } from '../i18n.js'
-import { state, categoryName, categoryIcon, money, refreshInbox, toast } from '../state.js'
+import { state, categoryName, categoryIcon, money, refreshInbox, toast, aiLabel } from '../state.js'
 import { addToInbox, acceptInboxItem, closeInboxItem } from '../lib/repo.js'
 import { mailText, mailFingerprint } from '../lib/mail.js'
 import { proposeFromMail } from '../lib/inbox.js'
@@ -16,7 +16,10 @@ const info = ref(false)
 const pasted = ref('')
 const busy = ref(false)
 const problem = ref('')
+/** @typedef {import('../types').InboxItem} InboxItem */
+/** @type {import('vue').Ref<string | null>} */
 const open = ref(null)        // id de la entrada con el correo a la vista
+/** @type {import('vue').Ref<{ item: InboxItem, movement: import('../types').FormMovement } | null>} */
 const editing = ref(null)     // { item, movement } en el formulario
 
 async function read () {
@@ -27,7 +30,7 @@ async function read () {
   try {
     const text = mailText(raw)
     const { found, engine, aiError } = await proposeFromMail(text)
-    if (aiError) toast(t('ai.fellBack', { label: state.ai.label, reason: errorText(aiError) }), 'error')
+    if (aiError) toast(t('ai.fellBack', { label: aiLabel(), reason: errorText(aiError) }), 'error')
     if (!found) {
       problem.value = t('inbox.noMovement')
       return
@@ -49,6 +52,10 @@ async function read () {
   }
 }
 
+/**
+ * @param {InboxItem} item
+ * @param {import('../types').ProposedMovement} [movement]
+ */
 async function accept (item, movement) {
   try {
     await acceptInboxItem(item, movement)
@@ -60,6 +67,7 @@ async function accept (item, movement) {
   }
 }
 
+/** @param {InboxItem} item */
 async function discard (item) {
   try {
     await closeInboxItem(item, 'discarded')
@@ -70,12 +78,14 @@ async function discard (item) {
   }
 }
 
+/** @param {InboxItem} item */
 function review (item) {
   editing.value = { item, movement: { ...item.movement, source: 'mail', review: true } }
 }
 
 // El formulario guarda el movimiento él mismo; aquí solo se cierra la entrada de la bandeja.
 async function onReviewed () {
+  if (!editing.value) throw new Error('no inbox item under review')
   const { item } = editing.value
   editing.value = null
   try {
@@ -99,7 +109,7 @@ async function onReviewed () {
       </h2>
       <p v-if="info" class="info-text">{{ t('inbox.info') }}</p>
       <textarea v-model="pasted" rows="5" :placeholder="t('inbox.pastePlaceholder')" data-testid="mail-paste"></textarea>
-      <p v-if="state.ai.configured" class="banner warn small" data-testid="mail-ai-note">{{ t('inbox.aiNote', { label: state.ai.label }) }}</p>
+      <p v-if="state.ai.configured" class="banner warn small" data-testid="mail-ai-note">{{ t('inbox.aiNote', { label: aiLabel() }) }}</p>
       <p v-if="problem" class="problem" role="alert" data-testid="mail-problem">{{ problem }}</p>
       <div class="actions">
         <button type="button" class="btn primary" :disabled="!pasted.trim() || busy" data-testid="mail-read" @click="read">{{ busy ? t('ai.thinking') : t('inbox.read') }}</button>

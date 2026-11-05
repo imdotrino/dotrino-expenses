@@ -10,15 +10,26 @@ import { localMonth } from '../lib/dates.js'
 import { FALLBACK } from '../lib/categories.js'
 import CategorySelect from './CategorySelect.vue'
 
+/** @typedef {import('../types').RecurringRule} RecurringRule */
+/**
+ * Lo que se edita: la regla con el importe como texto y el mes final vacío si no tiene.
+ * @typedef {Omit<import('../types').RecurringDraft, 'amount' | 'endMonth'> & { amountText: string, endMonth: string }} RuleForm
+ */
+
+/** @type {import('vue').Ref<string | null>} */
 const editing = ref(null)      // id de la regla, 'new', o null
+/** @type {import('vue').Ref<RuleForm | null>} */
 const form = ref(null)
+/** @type {import('vue').Ref<string[]>} */
 const problems = ref([])
 const busy = ref(false)
+/** @type {import('vue').Ref<RecurringRule | null>} */
 const toRemove = ref(null)
 const info = ref(false)
 
 const sorted = computed(() => [...state.recurring].sort((a, b) => a.day - b.day || a.name.localeCompare(b.name)))
 
+/** @returns {RuleForm} */
 function blank () {
   return { name: '', amountText: '', type: 'expense', category: FALLBACK.expense, day: 1, startMonth: localMonth(), endMonth: '' }
 }
@@ -29,6 +40,7 @@ function add () {
   editing.value = 'new'
 }
 
+/** @param {RecurringRule} rule */
 function edit (rule) {
   form.value = { ...rule, amountText: toDecimal(rule.amount), endMonth: rule.endMonth || '' }
   problems.value = []
@@ -40,10 +52,13 @@ function close () {
   form.value = null
 }
 
+/** @returns {import('../types').RecurringDraft} */
 function build () {
+  if (!form.value) throw new Error('no rule form open')
   const { amountText, ...rest } = form.value
   let amount = 0
   try { amount = Math.abs(parseAmount(amountText)) } catch { amount = 0 }
+  /** @type {import('../types').RecurringDraft} */
   const rule = { ...rest, name: String(rest.name || '').trim(), amount, day: Number(rest.day) }
   if (!rule.endMonth) delete rule.endMonth
   return rule
@@ -70,6 +85,7 @@ async function save () {
 
 async function confirmRemove () {
   const rule = toRemove.value
+  if (!rule) throw new Error('no rule to remove')
   toRemove.value = null
   try {
     await removeRecurring(rule.id)
@@ -82,6 +98,10 @@ async function confirmRemove () {
   }
 }
 
+/**
+ * @param {RecurringRule} rule
+ * @returns {string}
+ */
 function describe (rule) {
   let text = t('recurring.every', { day: rule.day })
   if (rule.startMonth) text += ` · ${t('recurring.from', { month: monthName(rule.startMonth) })}`
@@ -127,7 +147,7 @@ function describe (rule) {
       </div>
     </div>
 
-    <div v-if="editing" class="modal-backdrop" @click.self="close">
+    <div v-if="editing && form" class="modal-backdrop" @click.self="close">
       <form class="card modal stack" data-testid="rule-form" @submit.prevent="save">
         <h2>{{ editing === 'new' ? t('recurring.new') : t('recurring.edit') }}</h2>
 

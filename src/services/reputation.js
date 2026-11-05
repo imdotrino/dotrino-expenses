@@ -2,8 +2,10 @@
 import { createVaultReputation } from '@dotrino/reputation'
 import { getIdentity } from './identity.js'
 
+/** @type {ReturnType<typeof createVaultReputation> | null} */
 let reputation = null
 
+/** @returns {Promise<ReturnType<typeof createVaultReputation>>} */
 export async function getReputation () {
   if (reputation) return reputation
   reputation = createVaultReputation(await getIdentity())

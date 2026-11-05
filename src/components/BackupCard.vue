@@ -28,7 +28,8 @@ const reason = computed(() => {
   if (!s || s.state === 'syncing' || s.state === 'synced') return ''
   if (s.state === 'off') return hasText(`backup.off.${s.reason}`) ? t(`backup.off.${s.reason}`) : s.reason
   if (s.state === 'error') {
-    return hasText(`backup.errors.${s.error?.code}`) ? t(`backup.errors.${s.error.code}`) : t('backup.errors.other', { message: s.error?.message })
+    const code = s.error?.code
+    return code && hasText(`backup.errors.${code}`) ? t(`backup.errors.${code}`) : t('backup.errors.other', { message: s.error?.message })
   }
   return ''
 })
@@ -45,7 +46,8 @@ async function syncNow () {
     await syncBackup()
   } catch (e) {
     console.error('[expenses] sync backup:', e)
-    toast(hasText(`backup.errors.${e?.code}`) ? t(`backup.errors.${e.code}`) : errorText(e), 'error')
+    const code = /** @type {{ code?: unknown } | null} */ (e)?.code
+    toast(hasText(`backup.errors.${code}`) ? t(`backup.errors.${code}`) : errorText(e), 'error')
   } finally {
     busy.value = false
   }

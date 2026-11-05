@@ -23,9 +23,11 @@ const NEAR_BALANCE = /\b(saldo|cupo|disponible|l[ií]mite|contable|pendiente de 
 const INCOME = /\b(recib(?:ido|ida|iste)|acreditad[oa]|acreditaci[oó]n|abono|dep[oó]sito|te transfiri[oó]|transferencia recibida|reembolso|devoluci[oó]n|n[oó]mina|sueldo|received|deposit|refund)\b/i
 const EXPENSE = /\b(consumo|compra|pago|d[eé]bito|debitad[oa]|retiro|cargo|transferencia (?:enviada|realizada|exitosa)|avance|purchase|payment|withdrawal|charge)\b/i
 
+/** @type {Record<string, number>} */
 const MONTHS = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 }
 
 // Los bancos que se nombran solos en sus avisos. Solo para enseñarlo; no cambia cómo se lee.
+/** @type {[string, RegExp][]} */
 const BANKS = [
   ['Pichincha', /pichincha/i],
   ['Produbanco', /produbanco/i],
@@ -37,7 +39,11 @@ const BANKS = [
   ['JEP', /\bjep\b/i],
 ]
 
-/** Quita el HTML si el correo se pegó con él, y junta los espacios. */
+/**
+ * Quita el HTML si el correo se pegó con él, y junta los espacios.
+ * @param {unknown} raw
+ * @returns {string}
+ */
 export function mailText (raw) {
   return String(raw || '')
     .replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, ' ')
@@ -50,7 +56,12 @@ export function mailText (raw) {
     .trim()
 }
 
+/**
+ * @param {string} text
+ * @returns {{ cents: number, score: number, index: number, text: string } | null}
+ */
 function pickAmount (text) {
+  /** @type {{ cents: number, score: number, index: number, text: string } | null} */
   let best = null
   for (const m of text.matchAll(AMOUNT)) {
     const before = text.slice(Math.max(0, m.index - 40), m.index)
@@ -65,6 +76,11 @@ function pickAmount (text) {
   return best && best.score >= 0 ? best : null
 }
 
+/**
+ * @param {string} text
+ * @param {string} today
+ * @returns {string | null}
+ */
 function pickDate (text, today) {
   const year = Number(today.slice(0, 4))
   const ymd = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(text)
@@ -87,6 +103,11 @@ function pickDate (text, today) {
 }
 
 // Dónde fue: «en SUPERMAXI», «Comercio: KFC», «Establecimiento: …», «Beneficiario: …», «de JUAN».
+/**
+ * @param {string} text
+ * @param {import('../types').MovementType} type
+ * @returns {string}
+ */
 function pickMerchant (text, type) {
   const labeled = /\b(?:comercio|establecimiento|lugar|beneficiario|destinatario|ordenante|remitente|merchant)\s*:\s*([^\n]{2,60})/i.exec(text)
   if (labeled) return clean(labeled[1])
@@ -103,6 +124,7 @@ function pickMerchant (text, type) {
   return ''
 }
 
+/** @param {string} s */
 function clean (s) {
   // Se corta en la palabra en minúsculas que sigue al nombre («… el 20/10»): el comercio suele ir
   // en mayúsculas y puede llevar «EL» dentro.
@@ -120,10 +142,12 @@ export function parseBankMail (raw, { today = localDay() } = {}) {
   if (!text) return null
   const amount = pickAmount(text)
   if (!amount) return null
+  /** @type {string[]} */
   const hints = []
 
   // Lo que dice la frase del importe manda sobre el resto del correo (que trae pie, publicidad…).
   const around = text.slice(Math.max(0, amount.index - 160), amount.index + 60)
+  /** @type {import('../types').MovementType} */
   let type = 'expense'
   if (INCOME.test(around) && !EXPENSE.test(around.slice(-120))) { type = 'income'; hints.push('income-word') }
   else if (EXPENSE.test(around)) hints.push('expense-word')
@@ -141,11 +165,15 @@ export function parseBankMail (raw, { today = localDay() } = {}) {
   if (category === 'debt' && !/\bpago\s+(?:de|a)\s+(?:tu\s+)?tarjeta\b/i.test(around)) category = null
   if (category) hints.push('category-word')
 
-  const bank = (BANKS.find(([, re]) => re.test(text)) || [''])[0]
+  const bank = BANKS.find(([, re]) => re.test(text))?.[0] || ''
   return { amount: amount.cents, type, category: category || FALLBACK[type], note: merchant, date, bank, hints }
 }
 
-/** Una huella del correo pegado (por su texto) para no meter dos veces el mismo en la bandeja. */
+/**
+ * Una huella del correo pegado (por su texto) para no meter dos veces el mismo en la bandeja.
+ * @param {string} raw
+ * @returns {Promise<string>}
+ */
 export async function mailFingerprint (raw) {
   return digest(mailText(raw).replace(/\s+/g, ' ').toLowerCase())
 }
@@ -154,6 +182,8 @@ export async function mailFingerprint (raw) {
  * La huella de un correo traído del buzón, por su Message-ID. TAL CUAL: el id va entre `<…>`,
  * y pasarlo por `mailText` (que quita etiquetas) lo dejaba vacío, así que todos los correos
  * tenían la misma huella y solo entraba el primero.
+ * @param {unknown} id
+ * @returns {Promise<string>}
  */
 export async function messageIdFingerprint (id) {
   const clean = String(id || '').trim()
@@ -161,6 +191,7 @@ export async function messageIdFingerprint (id) {
   return digest(`message-id ${clean}`)
 }
 
+/** @param {string} text */
 async function digest (text) {
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))
   return Array.from(hash.slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('')

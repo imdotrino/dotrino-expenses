@@ -16,6 +16,17 @@ import { missingMovements } from './recurring.js'
 import { localMonth } from './dates.js'
 import { codeError } from './errors.js'
 
+/** @typedef {import('../types').Movement} Movement */
+/** @typedef {import('../types').MovementDraft} MovementDraft */
+/** @typedef {import('../types').RecurringRule} RecurringRule */
+/** @typedef {import('../types').RecurringDraft} RecurringDraft */
+/** @typedef {import('../types').Category} Category */
+/** @typedef {import('../types').Prefs} Prefs */
+/** @typedef {import('../types').InboxItem} InboxItem */
+/** @typedef {import('../types').ProposedMovement} ProposedMovement */
+/** @typedef {import('@dotrino/store').ThreadEntry} ThreadEntry */
+/** @typedef {Awaited<ReturnType<import('@dotrino/identity').Identity['sealContent']>>} SealedEnvelope */
+
 const SETTINGS = 'expenses.settings'
 const MOVEMENTS_PREFIX = 'expenses.movements.'
 const RECURRING_PREFIX = 'recurring:'
@@ -26,41 +37,64 @@ const INBOX = 'expenses.inbox'
 
 // dictation: 'off' | 'local' (Whisper en el aparato) | 'provider' (la IA del usuario). Apagado
 // hasta que el usuario lo encienda: la voz no sale de ningún lado sin que lo decida.
+/** @type {Readonly<Prefs>} */
 export const DEFAULT_PREFS = Object.freeze({ currency: 'USD', dictation: 'off' })
 
+/** @param {string} month 'aaaa-mm' */
 export function movementsThread (month) {
   return MOVEMENTS_PREFIX + month
 }
 
+/** @param {string} key */
 export function isMovementsThread (key) {
   return key.startsWith(MOVEMENTS_PREFIX)
 }
 
+/** @param {string} key */
 export function isSettingsThread (key) {
   return key === SETTINGS
 }
 
+/** @param {string} key */
 export function isInboxThread (key) {
   return key === INBOX
 }
 
 // Lo que llega de Vue puede ser un Proxy reactivo, y postMessage no lo clona.
+/**
+ * @template T
+ * @param {T} v
+ * @returns {T}
+ */
 const plain = (v) => JSON.parse(JSON.stringify(v))
 
 // ---------- movimientos ----------
 
+/**
+ * @param {string} month 'aaaa-mm'
+ * @returns {Promise<Movement[]>}
+ */
 export async function listMovements (month) {
   const store = await getStore()
   return (await store.listThread(movementsThread(month))).map(toMovement)
 }
 
+/**
+ * @param {ThreadEntry} entry
+ * @returns {Movement}
+ */
 function toMovement (entry) {
   // El almacén añade lo suyo (dir, etc.); aquí solo lo que es del movimiento.
-  const { id, date, amount, type, category, note, source, recurringId, pending, ts } = entry
+  const { id, date, amount, type, category, note, source, recurringId, pending, ts } = /** @type {Movement} */ (entry)
   return { id, date, amount, type, category, note: note || '', source: source || 'manual', recurringId, pending: !!pending, ts }
 }
 
+/**
+ * @param {MovementDraft} m
+ * @returns {string[]} los campos que no valen
+ */
 export function validateMovement (m) {
+  /** @type {string[]} */
   const problems = []
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || '')) problems.push('date')
   if (!Number.isSafeInteger(m.amount) || m.amount <= 0) problems.push('amount')
@@ -69,7 +103,12 @@ export function validateMovement (m) {
   return problems
 }
 
-/** Guarda (nuevo o cambiado). Si cambió de mes, se quita del hilo viejo. */
+/**
+ * Guarda (nuevo o cambiado). Si cambió de mes, se quita del hilo viejo.
+ * @param {MovementDraft} movement
+ * @param {{ previousDate?: string }} [opts]
+ * @returns {Promise<Movement>}
+ */
 export async function saveMovement (movement, { previousDate } = {}) {
   const problems = validateMovement(movement)
   if (problems.length) throw codeError('bad-movement', `invalid movement: ${problems.join(', ')}`, { problems })
@@ -85,6 +124,7 @@ export async function saveMovement (movement, { previousDate } = {}) {
   return toMovement(m)
 }
 
+/** @param {Pick<Movement, 'id' | 'date'> & Partial<Pick<Movement, 'recurringId' | 'pending'>>} movement */
 export async function removeMovement (movement) {
   const store = await getStore()
   await store.removeMessage(movementsThread(movement.date.slice(0, 7)), movement.id)
@@ -102,6 +142,8 @@ export async function removeMovement (movement) {
 /**
  * Genera lo que las reglas deben a este mes y lo devuelve junto con lo que ya había.
  * Se llama al abrir un mes: es idempotente (lo generado queda en el almacén con su recurringId).
+ * @param {string} month
+ * @returns {Promise<Movement[]>}
  */
 export async function ensureRecurring (month) {
   const [movements, rules] = await Promise.all([listMovements(month), listRecurring()])
@@ -114,27 +156,42 @@ export async function ensureRecurring (month) {
 
 // ---------- ajustes ----------
 
+/** @returns {Promise<ThreadEntry[]>} */
 async function settings () {
   const store = await getStore()
   return store.listThread(SETTINGS)
 }
 
+/**
+ * @param {string} id
+ * @param {object} value
+ */
 async function writeSetting (id, value) {
   const store = await getStore()
   return store.appendMessage(SETTINGS, { ...plain(value), id, ts: Date.now() })
 }
 
+/** @param {string} id */
 async function removeSetting (id) {
   const store = await getStore()
   return store.removeMessage(SETTINGS, id)
 }
 
-const stripPrefix = (prefix) => ({ id, ts, ...rest }) => ({ ...rest, id: id.slice(prefix.length) })
+/**
+ * Una entrada de ajustes sin su prefijo de id ni el `ts` del almacén.
+ * @param {string} prefix
+ */
+const stripPrefix = (prefix) => (/** @type {ThreadEntry} */ { id, ts, ...rest }) => ({ ...rest, id: String(id).slice(prefix.length) })
 
+/** @returns {Promise<RecurringRule[]>} */
 export async function listRecurring () {
-  return (await settings()).filter((e) => e.id.startsWith(RECURRING_PREFIX)).map(stripPrefix(RECURRING_PREFIX))
+  return /** @type {RecurringRule[]} */ ((await settings()).filter((e) => /** @type {string} */ (e.id).startsWith(RECURRING_PREFIX)).map(stripPrefix(RECURRING_PREFIX)))
 }
 
+/**
+ * @param {RecurringDraft} rule
+ * @returns {Promise<RecurringRule>}
+ */
 export async function saveRecurring (rule) {
   const id = rule.id || crypto.randomUUID()
   const { id: _, ...rest } = rule
@@ -142,14 +199,20 @@ export async function saveRecurring (rule) {
   return { ...rest, id }
 }
 
+/** @param {string} id */
 export async function removeRecurring (id) {
   return removeSetting(RECURRING_PREFIX + id)
 }
 
+/** @returns {Promise<Category[]>} */
 export async function listCustomCategories () {
-  return (await settings()).filter((e) => e.id.startsWith(CATEGORY_PREFIX)).map(({ id, ts, ...rest }) => ({ ...rest, key: id.slice(CATEGORY_PREFIX.length) }))
+  return /** @type {Category[]} */ ((await settings()).filter((e) => /** @type {string} */ (e.id).startsWith(CATEGORY_PREFIX)).map(({ id, ts, ...rest }) => ({ ...rest, key: String(id).slice(CATEGORY_PREFIX.length) })))
 }
 
+/**
+ * @param {Category} category
+ * @returns {Promise<Category>}
+ */
 export async function saveCustomCategory (category) {
   const { key, ...rest } = category
   if (!key) throw codeError('bad-category', 'a category needs a key')
@@ -157,10 +220,12 @@ export async function saveCustomCategory (category) {
   return category
 }
 
+/** @param {string} key */
 export async function removeCustomCategory (key) {
   return removeSetting(CATEGORY_PREFIX + key)
 }
 
+/** @returns {Promise<Prefs>} */
 export async function readPrefs () {
   const entry = (await settings()).find((e) => e.id === PREFS)
   if (!entry) return { ...DEFAULT_PREFS }
@@ -168,6 +233,10 @@ export async function readPrefs () {
   return { ...DEFAULT_PREFS, ...rest }
 }
 
+/**
+ * @param {Prefs} prefs
+ * @returns {Promise<Prefs>}
+ */
 export async function savePrefs (prefs) {
   await writeSetting(PREFS, prefs)
   return { ...DEFAULT_PREFS, ...prefs }
@@ -175,6 +244,7 @@ export async function savePrefs (prefs) {
 
 // ---------- la llave de IA (sellada; la abre lib/ai.js) ----------
 
+/** @returns {Promise<{ provider: string, envelope: SealedEnvelope } | null>} */
 export async function readAiRecord () {
   const entry = (await settings()).find((e) => e.id === AI)
   if (!entry) return null
@@ -182,10 +252,12 @@ export async function readAiRecord () {
   return { provider: entry.provider, envelope: entry.envelope }
 }
 
+/** @param {{ provider: string, envelope: SealedEnvelope }} record */
 export async function saveAiRecord ({ provider, envelope }) {
   await writeSetting(AI, { provider, envelope })
 }
 
+/** Borra el registro de la llave de IA. */
 export async function removeAiRecord () {
   return removeSetting(AI)
 }
@@ -196,13 +268,14 @@ export async function removeAiRecord () {
 // (se queda con `status: 'discarded'` en vez de borrarse). Aceptar guarda el movimiento y deja
 // la entrada `accepted` con el id del movimiento.
 
+/** @returns {Promise<InboxItem[]>} */
 export async function listInbox () {
   const store = await getStore()
-  return (await store.listThread(INBOX)).filter((e) => e.status === 'pending').sort((a, b) => b.ts - a.ts)
+  return /** @type {InboxItem[]} */ (await store.listThread(INBOX)).filter((e) => e.status === 'pending').sort((a, b) => b.ts - a.ts)
 }
 
 /**
- * @param {{ fingerprint:string, source:'paste'|'imap'|'gmail', movement:object, bank?:string, excerpt?:string, engine:'rules'|'ai' }} item
+ * @param {{ fingerprint:string, source:'paste'|'imap'|'gmail', movement:ProposedMovement, bank?:string, excerpt?:string, engine:'rules'|'ai' }} item
  * @returns {Promise<{ added: boolean, status?: string }>} `added: false` si ese correo ya estaba
  */
 export async function addToInbox ({ fingerprint, source, movement, bank = '', excerpt = '', engine }) {
@@ -216,7 +289,12 @@ export async function addToInbox ({ fingerprint, source, movement, bank = '', ex
   return { added: true }
 }
 
-/** Acepta (con lo que el usuario haya corregido): guarda el movimiento y cierra la entrada. */
+/**
+ * Acepta (con lo que el usuario haya corregido): guarda el movimiento y cierra la entrada.
+ * @param {InboxItem} item
+ * @param {ProposedMovement} [movement]
+ * @returns {Promise<Movement>}
+ */
 export async function acceptInboxItem (item, movement = item.movement) {
   const saved = await saveMovement({ ...movement, source: 'mail', pending: false })
   const store = await getStore()
@@ -224,7 +302,11 @@ export async function acceptInboxItem (item, movement = item.movement) {
   return saved
 }
 
-/** Cierra la entrada sin guardar nada: `discarded`, o `accepted` si el movimiento ya lo guardó el formulario. */
+/**
+ * Cierra la entrada sin guardar nada: `discarded`, o `accepted` si el movimiento ya lo guardó el formulario.
+ * @param {InboxItem} item
+ * @param {'discarded' | 'accepted'} status
+ */
 export async function closeInboxItem (item, status) {
   if (status !== 'discarded' && status !== 'accepted') throw codeError('bad-inbox-status', `unknown inbox status: ${status}`)
   const store = await getStore()
@@ -235,11 +317,19 @@ export async function closeInboxItem (item, status) {
 
 const CURSOR_PREFIX = 'mail-cursor:'
 
+/**
+ * @param {string} agentSub
+ * @returns {Promise<unknown>} el cursor que dio el agente, o null
+ */
 export async function readMailCursor (agentSub) {
   const entry = (await settings()).find((e) => e.id === CURSOR_PREFIX + agentSub)
   return entry?.cursor || null
 }
 
+/**
+ * @param {string} agentSub
+ * @param {unknown} cursor
+ */
 export async function saveMailCursor (agentSub, cursor) {
   await writeSetting(CURSOR_PREFIX + agentSub, { cursor })
 }

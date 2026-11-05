@@ -13,6 +13,7 @@ const INCOME_WORDS = /\b(ingreso|ingres[oé]|cobr[eéo]|cobr[ao]|me pagaron|pago
 
 // Palabras → categoría. Lo primero que empareja, gana: el orden importa poco porque las
 // listas no se pisan. Es/en mezclados a propósito: la gente escribe como habla.
+/** @type {[string, RegExp][]} */
 const CATEGORY_WORDS = [
   ['transport', /\b(taxi|uber|cabify|indriver|bus|buseta|metro|tren|gasolina|gas|combustible|parqueo|parking|peaje|pasaje|fuel|ride)\b/i],
   ['groceries', /\b(mercado|supermercado|supermaxi|tía|tia|aki|megamaxi|víveres|viveres|despensa|groceries|supermarket)\b/i],
@@ -31,6 +32,7 @@ const CATEGORY_WORDS = [
   ['gifts', /\b(regalo|regalaron|gift|bono|bonus|propina|tip)\b/i],
 ]
 
+/** @type {[RegExp, number][]} */
 const DATE_WORDS = [
   [/\b(hoy|today)\b/i, 0],
   [/\b(ayer|yesterday)\b/i, -1],
@@ -47,11 +49,16 @@ const AMOUNT = /(?<![\w/.,])([+-])?\$?\s?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|
 const SPOKEN_AMOUNT = /(\d+)\s*(?:(?:d[oó]lares?|dollars?|usd)\s*(?:con|y|and)\s*(\d{1,2})(?:\s*(?:centavos?|cents?))?|(?:con|y|and)\s*(\d{1,2})\s*(?:centavos?|cents?))\b/i
 const CURRENCY_WORDS = /\b(d[oó]lares?|dollars?|usd)\b/gi
 
+/** @param {string} text */
 function normalizeSpoken (text) {
-  return text.replace(SPOKEN_AMOUNT, (_, units, c1, c2) => `${units}.${String(c1 ?? c2).padStart(2, '0')}`)
+  return text.replace(SPOKEN_AMOUNT, (/** @type {string} */ _, /** @type {string} */ units, /** @type {string | undefined} */ c1, /** @type {string | undefined} */ c2) => `${units}.${String(c1 ?? c2).padStart(2, '0')}`)
 }
 
-/** La categoría que sugieren las palabras del texto, o null. */
+/**
+ * La categoría que sugieren las palabras del texto, o null.
+ * @param {string} text
+ * @returns {string | null}
+ */
 export function guessCategory (text) {
   for (const [key, re] of CATEGORY_WORDS) {
     if (re.test(text)) return key
@@ -78,6 +85,7 @@ export function parseMovement (text, { today = localDay() } = {}) {
   }
   if (amount === 0) return null
 
+  /** @type {import('../types').MovementType} */
   let type = 'expense'
   if (m[1] === '+') { type = 'income'; hints.push('sign') }
   else if (m[1] === '-') { type = 'expense'; hints.push('sign') }

@@ -10,11 +10,13 @@ import { addToInbox } from './repo.js'
 import { localDay } from './dates.js'
 
 /**
- * @returns {Promise<{ found: null | object, engine: 'ai'|'rules', aiError: Error|null }>}
+ * @param {string} text
+ * @returns {Promise<{ found: null | (import('../types').ProposedMovement & { bank: string }), engine: 'ai'|'rules', aiError: unknown }>}
  *   `found`: { amount, type, category, note, date, bank } o null si el correo no es una operación.
  */
 export async function proposeFromMail (text) {
   const today = localDay()
+  /** @type {unknown} */
   let aiError = null
   if (state.ai.configured) {
     try {
@@ -32,9 +34,11 @@ export async function proposeFromMail (text) {
 
 /**
  * Lo que trajo el agente → la bandeja. El mismo correo (por su Message-ID) no entra dos veces.
- * @returns {Promise<{ added: number, seen: number, empty: number, aiError: Error|null }>}
+ * @param {import('../types').AgentMail[]} mails
+ * @returns {Promise<{ added: number, seen: number, empty: number, aiError: unknown }>}
  */
 export async function importAgentMails (mails) {
+  /** @type {{ added: number, seen: number, empty: number, aiError: unknown }} */
   const out = { added: 0, seen: 0, empty: 0, aiError: null }
   for (const m of mails) {
     const fingerprint = await messageIdFingerprint(m.id)

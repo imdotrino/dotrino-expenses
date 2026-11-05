@@ -15,9 +15,12 @@ export const AGENT_KIND = 'expenses-agent'
 const PULL_TIMEOUT_MS = 90_000
 const STATUS_TIMEOUT_MS = 30_000
 
+/** @typedef {Extract<import('@dotrino/remote-agent/browser-link').BrowserLink, { paired: true }>} PairedLink */
+/** @typedef {{ sub: string, label: string }} Agent */
+
 /**
  * Los agentes de Expenses ENCENDIDOS de la cuenta.
- * @returns {Promise<{ state: 'unpaired' } | { state: 'found', link: object, agents: Array<{ sub:string, label:string }> }>}
+ * @returns {Promise<{ state: 'unpaired', expired: boolean } | { state: 'found', link: PairedLink, agents: Agent[] }>}
  *   `agents` vacío = ninguno contesta ahora (apagado, o no hay ninguno).
  */
 export async function findAgents () {
@@ -37,12 +40,20 @@ export async function findAgents () {
   }
 }
 
-/** Una sesión con un agente: `status()` y `pull(cursor)`. Se cierra con `close()`. */
+/**
+ * Una sesión con un agente: `status()` y `pull(cursor)`. Se cierra con `close()`.
+ * @param {PairedLink} link
+ * @param {Agent} agent
+ * @returns {Promise<import('../types').AgentSession>}
+ */
 export async function openAgent (link, agent) {
   const rc = new RemoteAgentClient(link, { agentPubkey: agent.sub })
+  /** @type {Map<string, { resolve: (v: any) => void, reject: (e: unknown) => void, timer: ReturnType<typeof setTimeout> }>} */
   const waiting = new Map()   // re → { resolve, reject, timer }
-  rc.on('message', (p) => {
-    const w = p && waiting.get(p.re)
+  rc.on('message', (raw) => {
+    const p = /** @type {{ re?: string, type?: string, code?: string, message?: string } | null} */ (raw)
+    if (!p?.re) return
+    const w = waiting.get(p.re)
     if (!w) return
     waiting.delete(p.re)
     clearTimeout(w.timer)
@@ -56,9 +67,14 @@ export async function openAgent (link, agent) {
   try {
     await rc.connect()
   } catch (e) {
-    throw codeError('agent-unreachable', `could not open a session with the agent: ${e?.message || e}`, { cause: e })
+    throw codeError('agent-unreachable', `could not open a session with the agent: ${e instanceof Error ? e.message : e}`, { cause: e })
   }
 
+  /**
+   * @param {{ type: string, [k: string]: unknown }} payload
+   * @param {number} timeoutMs
+   * @returns {Promise<any>} la respuesta del agente, con la forma que da `type`
+   */
   function call (payload, timeoutMs) {
     const re = crypto.randomUUID()
     return new Promise((resolve, reject) => {

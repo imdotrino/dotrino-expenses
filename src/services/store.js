@@ -6,9 +6,15 @@
 // fallo que se pueda notar tarde.
 import { Store } from '@dotrino/store'
 import { getIdentity } from './identity.js'
+import { codeError } from '../lib/errors.js'
 
+/** @type {Promise<Store> | null} */
 let connecting = null
 
+/**
+ * El almacén del perfil activo, conectado una vez.
+ * @returns {Promise<Store>}
+ */
 export function getStore () {
   if (!connecting) {
     connecting = connect().catch((e) => {
@@ -19,6 +25,7 @@ export function getStore () {
   return connecting
 }
 
+/** @returns {Promise<Store>} */
 async function connect () {
   const identity = await getIdentity()
   let store
@@ -30,16 +37,13 @@ async function connect () {
   } catch (e) {
     // «Sin perfil» u «otro perfil» no son «no contesta»: se arreglan distinto, y el
     // código no se pierde al envolver.
-    if (e?.code === 'store-no-profile' || e?.code === 'store-identity-mismatch') throw e
-    const err = new Error(`store unreachable: ${e?.message || e}`, { cause: e })
-    err.code = 'store-unreachable'
-    throw err
+    const code = /** @type {{ code?: unknown }} */ (e)?.code
+    if (code === 'store-no-profile' || code === 'store-identity-mismatch') throw e
+    throw codeError('store-unreachable', `store unreachable: ${e instanceof Error ? e.message : e}`, { cause: e })
   }
   const profile = await identity.currentProfile()
   if (!profile?.id || store.profileId !== profile.id) {
-    const err = new Error(`the store is not bound to the active profile (store: ${store.profileId}, profile: ${profile?.id})`)
-    err.code = 'store-profile-mismatch'
-    throw err
+    throw codeError('store-profile-mismatch', `the store is not bound to the active profile (store: ${store.profileId}, profile: ${profile?.id})`)
   }
   return store
 }

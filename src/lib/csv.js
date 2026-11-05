@@ -4,6 +4,11 @@ import { toDecimal } from './money.js'
 
 const HEADER = ['date', 'type', 'category', 'amount', 'note', 'source', 'pending']
 
+/**
+ * @param {import('../types').Movement[]} movements
+ * @param {{ categoryName?: (key: string) => string }} [opts]
+ * @returns {string}
+ */
 export function movementsToCsv (movements, { categoryName = (k) => k } = {}) {
   const rows = [HEADER.join(',')]
   const sorted = [...movements].sort((a, b) => a.date.localeCompare(b.date) || a.ts - b.ts)
@@ -14,11 +19,16 @@ export function movementsToCsv (movements, { categoryName = (k) => k } = {}) {
   return rows.join('\r\n') + '\r\n'
 }
 
+/** @param {unknown} value */
 function cell (value) {
   const s = String(value ?? '')
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
+/**
+ * @param {string} name
+ * @param {Blob} blob
+ */
 export function downloadBlob (name, blob) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

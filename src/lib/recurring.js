@@ -4,7 +4,16 @@
 
 import { dayInMonth } from './dates.js'
 
-/** ¿La regla aplica a este mes? */
+/** @typedef {import('../types').RecurringRule} RecurringRule */
+/** @typedef {import('../types').RecurringDraft} RecurringDraft */
+/** @typedef {import('../types').Movement} Movement */
+
+/**
+ * ¿La regla aplica a este mes?
+ * @param {Pick<RecurringRule, 'startMonth' | 'endMonth' | 'skipped'>} rule
+ * @param {string} month 'aaaa-mm'
+ * @returns {boolean}
+ */
 export function appliesTo (rule, month) {
   if (rule.startMonth && month < rule.startMonth) return false
   if (rule.endMonth && month > rule.endMonth) return false
@@ -16,6 +25,12 @@ export function appliesTo (rule, month) {
  * Qué movimientos faltan generar en `month`: una regla que aplica y no tiene movimiento con
  * su `recurringId` en ese mes. Solo en meses que ya empezaron (`month <= currentMonth`), porque
  * anotar el futuro desordena el calendario del mes que se está mirando.
+ * @param {RecurringRule[]} rules
+ * @param {Pick<Movement, 'recurringId'>[]} movements
+ * @param {string} month
+ * @param {string} currentMonth
+ * @param {{ now?: number, uuid?: () => string }} [opts]
+ * @returns {Movement[]}
  */
 export function missingMovements (rules, movements, month, currentMonth, { now = Date.now(), uuid = () => crypto.randomUUID() } = {}) {
   if (month > currentMonth) return []
@@ -29,14 +44,19 @@ export function missingMovements (rules, movements, month, currentMonth, { now =
       type: r.type,
       category: r.category,
       note: r.name,
-      source: 'recurring',
+      source: /** @type {const} */ ('recurring'),
       recurringId: r.id,
       pending: true,
       ts: now,
     }))
 }
 
+/**
+ * @param {RecurringDraft} rule
+ * @returns {string[]} los campos que no valen
+ */
 export function validateRule (rule) {
+  /** @type {string[]} */
   const problems = []
   if (!String(rule.name || '').trim()) problems.push('name')
   if (!Number.isSafeInteger(rule.amount) || rule.amount <= 0) problems.push('amount')

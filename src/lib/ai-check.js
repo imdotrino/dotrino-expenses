@@ -9,9 +9,13 @@ import { codeError } from './errors.js'
  * Un importe que no se lee o es cero → `ai-no-amount`; un tipo desconocido → `ai-bad-answer`.
  * Una categoría que no existe o es del otro tipo pasa a la genérica de ese tipo, y una fecha
  * inválida a hoy: el usuario lo revisa en el formulario antes de guardar.
+ * @param {unknown} raw  lo que contestó el modelo
+ * @param {{ today: string, categories: import('../types').Category[] }} ctx
+ * @returns {import('../types').ProposedMovement}
  */
-export function checkMovement (answer, { today, categories }) {
-  if (!answer || typeof answer !== 'object') throw codeError('ai-bad-answer', 'the model did not answer an object')
+export function checkMovement (raw, { today, categories }) {
+  if (!raw || typeof raw !== 'object') throw codeError('ai-bad-answer', 'the model did not answer an object')
+  const answer = /** @type {Record<string, unknown>} */ (raw)
   let amount
   try {
     amount = Math.abs(parseAmount(answer.amount))
@@ -19,6 +23,7 @@ export function checkMovement (answer, { today, categories }) {
     throw codeError('ai-no-amount', `the model found no amount: ${JSON.stringify(answer.amount)}`)
   }
   if (!amount) throw codeError('ai-no-amount', 'the model found no amount')
+  /** @type {import('../types').MovementType | null} */
   const type = answer.type === 'income' ? 'income' : answer.type === 'expense' ? 'expense' : null
   if (!type) throw codeError('ai-bad-answer', `the model answered an unknown type: ${JSON.stringify(answer.type)}`)
   const cat = categories.find((c) => c.key === answer.category)

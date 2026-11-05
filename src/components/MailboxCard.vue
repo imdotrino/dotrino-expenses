@@ -5,7 +5,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 import { t, lang, errorText } from '../i18n.js'
-import { state, refreshInbox, toast } from '../state.js'
+import { state, refreshInbox, toast, aiLabel } from '../state.js'
 import { findAgents, openAgent } from '../lib/mailbox.js'
 import { importAgentMails } from '../lib/inbox.js'
 import { readMailCursor, saveMailCursor } from '../lib/repo.js'
@@ -14,7 +14,13 @@ const WIKI = computed(() => lang.value === 'es' ? 'https://wiki.dotrino.com/apps
 
 const phase = ref('checking')   // checking | unpaired | expired | none | ready | error
 const problem = ref('')
+/**
+ * Un agente del correo en pantalla.
+ * @typedef {{ sub: string, label: string, status: import('../types').AgentStatus | null, busy: boolean, note: string, problem: string }} Box
+ */
+/** @type {import('vue').Ref<Box[]>} */
 const boxes = ref([])           // [{ sub, label, status, busy, note, problem }]
+/** @type {Map<string, import('../types').AgentSession>} */
 const sessions = new Map()      // sub → sesión abierta (fuera de Vue: lleva llaves)
 const busy = ref(false)
 
@@ -51,6 +57,7 @@ async function discover () {
   }
 }
 
+/** @param {Box} box */
 async function pull (box) {
   const s = sessions.get(box.sub)
   if (!s || !box.status?.configured) return
@@ -62,7 +69,7 @@ async function pull (box) {
     // El cursor avanza DESPUÉS de meterlos en la bandeja: si algo falla antes, la siguiente
     // vez se vuelven a pedir los mismos.
     await saveMailCursor(box.sub, cursor)
-    if (res.aiError) toast(t('ai.fellBack', { label: state.ai.label, reason: errorText(res.aiError) }), 'error')
+    if (res.aiError) toast(t('ai.fellBack', { label: aiLabel(), reason: errorText(res.aiError) }), 'error')
     box.note = res.added ? t('mailbox.added', { count: res.added }) : t('mailbox.nothingNew')
     if (res.added) await refreshInbox()
   } catch (e) {

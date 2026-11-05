@@ -17,37 +17,48 @@ const TABS = ['month', 'inbox', 'summary', 'recurring', 'settings']
 const TAB_KEY = 'expenses.tab'
 
 const tab = ref(readTab())
+/** @type {import('vue').Ref<import('@dotrino/topbar').DotrinoTopbar | null>} */
 const topbar = ref(null)
 
+/** @returns {string} */
 function readTab () {
   try {
     const v = sessionStorage.getItem(TAB_KEY)
-    return TABS.includes(v) ? v : 'month'
+    return v && TABS.includes(v) ? v : 'month'
   } catch {
     return 'month'
   }
 }
 
+/** @param {string} name */
 function setTab (name) {
   tab.value = name
   try { sessionStorage.setItem(TAB_KEY, name) } catch { /* modo privado */ }
 }
 
+/** @param {CustomEvent<{ lang: string }>} e */
 function onLang (e) {
   setLang(e.detail.lang)
+}
+
+/** El topbar ya montado; sin él no hay dónde poner la identidad, y se dice. */
+function mountedTopbar () {
+  if (!topbar.value) throw new Error('topbar is not mounted')
+  return topbar.value
 }
 
 onMounted(() => {
   boot()
   // Identidad del topbar (§6.1), después del primer pintado.
   getIdentity().then(async (id) => {
-    topbar.value.identity = id
+    const tb = mountedTopbar()
+    tb.identity = id
     // Si la cuenta de este navegador se borra, lo que hay en pantalla ya no existe: se recarga.
     id.onVault?.((e) => { if (e?.phase === 'account-removed') location.reload() })
-    topbar.value.reputation = await getReputation()
+    tb.reputation = await getReputation()
   }).catch((e) => console.error('[expenses] topbar identity:', e))
   // El estado del respaldo, a la vista en el botón de perfil.
-  getStore().then((store) => { topbar.value.store = store })
+  getStore().then((store) => { mountedTopbar().store = store })
     .catch((e) => console.error('[expenses] topbar store:', e))
 })
 </script>

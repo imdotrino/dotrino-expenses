@@ -537,8 +537,12 @@ const messages = {
   },
 }
 
+/** @typedef {import('./types').Lang} Lang */
+
+/** @type {import('vue').Ref<Lang>} */
 export const lang = ref(initialLang())
 
+/** @returns {Lang} */
 function initialLang () {
   try {
     const saved = localStorage.getItem('dotrino.lang')
@@ -547,44 +551,84 @@ function initialLang () {
   return (navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en'
 }
 
-/** Una fecha en el idioma activo (es-EC / en-US). `opts` son los de Intl.DateTimeFormat. */
+/**
+ * Una fecha en el idioma activo (es-EC / en-US). `opts` son los de Intl.DateTimeFormat.
+ * @param {Date | string | number} value
+ * @param {Intl.DateTimeFormatOptions} [opts]
+ * @returns {string}
+ */
 export function formatDate (value, opts) {
   return new Intl.DateTimeFormat(lang.value === 'es' ? 'es-EC' : 'en-US', opts).format(value instanceof Date ? value : new Date(value))
 }
 
-/** 'aaaa-mm' → «octubre de 2026» / «October 2026». */
+/**
+ * 'aaaa-mm' → «octubre de 2026» / «October 2026».
+ * @param {string} month
+ * @returns {string}
+ */
 export function monthName (month) {
   const [y, m] = month.split('-').map(Number)
   const text = formatDate(new Date(Date.UTC(y, m - 1, 1)), { month: 'long', year: 'numeric', timeZone: 'UTC' })
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+/** @param {unknown} l */
 export function setLang (l) {
   if (l !== 'es' && l !== 'en') throw new Error(`unsupported language: ${l}`)
   lang.value = l
 }
 
+/**
+ * El texto de una clave ('month.prev'), con `{var}` sustituidas.
+ * @param {string} path
+ * @param {Record<string, unknown>} [vars]
+ * @returns {string}
+ */
 export function t (path, vars) {
-  const value = path.split('.').reduce((o, k) => (o == null ? o : o[k]), messages[lang.value])
+  const value = lookup(path)
   if (typeof value !== 'string') throw new Error(`missing translation: ${lang.value}.${path}`)
-  return vars ? value.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`)) : value
+  return vars ? value.replace(/\{(\w+)\}/g, (_, /** @type {string} */ k) => (k in vars ? String(vars[k]) : `{${k}}`)) : value
 }
 
-/** Una lista de textos (los días de la semana). */
+/**
+ * Una lista de textos (los días de la semana).
+ * @param {string} path
+ * @returns {string[]}
+ */
 export function tl (path) {
-  const value = path.split('.').reduce((o, k) => (o == null ? o : o[k]), messages[lang.value])
+  const value = lookup(path)
   if (!Array.isArray(value)) throw new Error(`missing translation list: ${lang.value}.${path}`)
   return value
 }
 
-/** ¿Hay texto para esta clave? Para códigos que vienen de fuera y pueden ser nuevos. */
+/**
+ * ¿Hay texto para esta clave? Para códigos que vienen de fuera y pueden ser nuevos.
+ * @param {string} path
+ * @returns {boolean}
+ */
 export function hasText (path) {
-  return typeof path.split('.').reduce((o, k) => (o == null ? o : o[k]), messages[lang.value]) === 'string'
+  return typeof lookup(path) === 'string'
 }
 
-/** Mensaje para un error con `code`; los desconocidos dicen lo que pasó, tal cual. */
+/**
+ * Lo que hay en `path` dentro de los textos del idioma activo (texto, lista u objeto).
+ * @param {string} path
+ * @returns {unknown}
+ */
+function lookup (path) {
+  return path.split('.').reduce((/** @type {unknown} */ o, k) => (o == null ? o : /** @type {Record<string, unknown>} */ (o)[k]), messages[lang.value])
+}
+
+/**
+ * Mensaje para un error con `code`; los desconocidos dicen lo que pasó, tal cual.
+ * @param {unknown} e
+ * @returns {string}
+ */
 export function errorText (e) {
-  const code = e?.code
-  const known = code && messages[lang.value].errors[code]
-  return known || t('errors.unknown', { message: e?.message || String(e) })
+  const err = /** @type {{ code?: unknown, message?: unknown } | null | undefined} */ (e)
+  const code = err?.code
+  /** @type {Record<string, string>} */
+  const errors = messages[lang.value].errors
+  const known = typeof code === 'string' && code ? errors[code] : undefined
+  return known || t('errors.unknown', { message: err?.message || String(e) })
 }

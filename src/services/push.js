@@ -6,6 +6,10 @@ import { APP } from '../lib/reminders.js'
 
 const PROXY_URL = 'wss://proxy.dotrino.com'
 
+/**
+ * Una conexión corta al proxio, solo para programar timbres (sin WebRTC ni reconexión).
+ * @returns {Promise<WebSocketProxyClient>}
+ */
 export async function connectProxy () {
   const client = new WebSocketProxyClient({ url: PROXY_URL, app: APP, enableWebRTC: false, autoReconnect: false })
   await client.connect()

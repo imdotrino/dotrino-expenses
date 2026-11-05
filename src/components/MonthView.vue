@@ -5,7 +5,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useBackLayer } from '@dotrino/nav/vue'
 import { t, tl, lang, errorText, formatDate, monthName } from '../i18n.js'
-import { state, money, categories, categoryName, categoryIcon, toast, refreshReminders } from '../state.js'
+import { state, money, categories, categoryName, categoryIcon, toast, refreshReminders, aiLabel } from '../state.js'
 import { ensureRecurring, saveMovement, removeMovement } from '../lib/repo.js'
 import { monthTotals, dayTotals } from '../lib/summary.js'
 import { localMonth, localDay, shiftMonth, daysInMonth, firstWeekdayMonday, dayToDate } from '../lib/dates.js'
@@ -17,15 +17,24 @@ import '@dotrino/dictation'
 import MovementForm from './MovementForm.vue'
 
 const month = ref(readOpenMonth())
+/** @typedef {import('../types').Movement} Movement */
+/** @typedef {import('../types').FormMovement} FormMovement */
+
+/** @type {import('vue').Ref<string | null>} */
 const selectedDay = ref(null)      // 'aaaa-mm-dd' o null = todo el mes
+/** @type {import('vue').Ref<Movement[]>} */
 const movements = ref([])
 const loading = ref(false)
+/** @type {import('vue').Ref<FormMovement | null>} */
 const editing = ref(null)          // movimiento en el formulario (nuevo o existente)
 const formOpen = ref(false)
 const quick = ref('')
 const quickProblem = ref('')
 const quickBusy = ref(false)
+/** El <dotrino-dictation> (sin tipos propios): con la IA del usuario le pasa el audio a `transcriber`. */
+/** @type {import('vue').Ref<(HTMLElement & { transcriber: typeof transcribeWithAi | null }) | null>} */
 const mic = ref(null)
+/** @type {import('vue').Ref<{ text: string, error: unknown }>} */
 const micStatus = ref({ text: '', error: null })   // lo que dice el micrófono, bajo el cuadro
 
 // El dictado, según Ajustes. «Con tu IA» solo si la IA guardada sabe transcribir; si no, no hay
@@ -39,6 +48,7 @@ const dictation = computed(() => {
 watch([mic, dictation], () => { if (mic.value) mic.value.transcriber = transcribeWithAi })
 
 // Lo dictado cae en el cuadro y se entiende igual que lo escrito: el usuario lo revisa siempre.
+/** @param {CustomEvent<{ text: string }>} e */
 function fromDictation (e) {
   quick.value = e.detail.text
   fromQuick()
@@ -54,6 +64,7 @@ const weekdays = computed(() => tl('month.weekdays'))
 const cells = computed(() => {
   const blanks = firstWeekdayMonday(month.value)
   const n = daysInMonth(month.value)
+  /** @type {({ key: string, blank: true } | { key: string, blank?: undefined, day: string, n: number, totals: import('../types').DayTotals | null })[]} */
   const list = []
   for (let i = 0; i < blanks; i++) list.push({ key: `b${i}`, blank: true })
   for (let d = 1; d <= n; d++) {
@@ -76,6 +87,7 @@ const due = computed(() => {
   return d.overdue.length || d.today.length || d.soon.length ? d : null
 })
 
+/** @param {Movement} m */
 function dueWhen (m) {
   if (m.date === today.value) return t('reminders.today')
   if (m.date < today.value) return t('reminders.overdue')
@@ -99,12 +111,14 @@ async function load () {
   }
 }
 
+/** @param {number} delta */
 function go (delta) {
   month.value = shiftMonth(month.value, delta)
   selectedDay.value = null
   saveOpenMonth(month.value)
 }
 
+/** @param {string} day */
 function pickDay (day) {
   selectedDay.value = selectedDay.value === day ? null : day
 }
@@ -114,6 +128,7 @@ function openNew () {
   formOpen.value = true
 }
 
+/** @param {Movement} m */
 function openEdit (m) {
   editing.value = { ...m }
   formOpen.value = true
@@ -132,11 +147,11 @@ async function fromQuick () {
       return openReview({ ...m, source: 'text' })
     } catch (e) {
       console.error('[expenses] ai parse:', e)
-      if (e?.code === 'ai-no-amount') {
+      if (/** @type {{ code?: unknown } | null} */ (e)?.code === 'ai-no-amount') {
         quickProblem.value = t('month.quickNoAmount')
         return
       }
-      toast(t('ai.fellBack', { label: state.ai.label, reason: errorText(e) }), 'error')
+      toast(t('ai.fellBack', { label: aiLabel(), reason: errorText(e) }), 'error')
     } finally {
       quickBusy.value = false
     }
@@ -150,6 +165,7 @@ async function fromQuick () {
   openReview({ ...rest, source: 'text' })
 }
 
+/** @param {import('../types').ProposedMovement & { source: string }} m */
 function openReview (m) {
   editing.value = { ...m, review: true }
   formOpen.value = true
@@ -161,6 +177,7 @@ async function onSaved () {
   await load()
 }
 
+/** @param {Movement} m */
 async function confirm (m) {
   try {
     await saveMovement({ ...m, pending: false })
@@ -173,6 +190,7 @@ async function confirm (m) {
   }
 }
 
+/** @param {Movement} m */
 async function discard (m) {
   try {
     await removeMovement(m)
@@ -248,7 +266,7 @@ onMounted(load)
       <p v-else-if="dictation && micStatus.text" :class="micStatus.error ? 'problem' : 'info-text'" role="status" data-testid="mic-status">{{ micStatus.text }}</p>
       <p v-else class="info-text">
         {{ quickBusy ? t('ai.thinking') : t('month.quickHelp') }}
-        <span class="chip" data-testid="quick-engine">{{ state.ai.configured ? t('ai.usingAi', { label: state.ai.label }) : t('ai.usingRules') }}</span>
+        <span class="chip" data-testid="quick-engine">{{ state.ai.configured ? t('ai.usingAi', { label: aiLabel() }) : t('ai.usingRules') }}</span>
       </p>
     </div>
 
@@ -283,7 +301,7 @@ onMounted(load)
 
     <button type="button" class="fab" :aria-label="t('month.add')" data-testid="add" @click="openNew">+</button>
 
-    <MovementForm v-if="formOpen" :movement="editing" @saved="onSaved" @removed="onSaved" @close="formOpen = false" />
+    <MovementForm v-if="formOpen && editing" :movement="editing" @saved="onSaved" @removed="onSaved" @close="formOpen = false" />
   </section>
 </template>
 

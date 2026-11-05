@@ -4,7 +4,7 @@
 import { readOpenMonth, saveOpenMonth } from '../lib/open-month.js'
 import { ref, computed, watch, onMounted } from 'vue'
 import { t, lang, errorText, monthName } from '../i18n.js'
-import { state, money, categoryName, categoryIcon, toast } from '../state.js'
+import { state, money, categoryName, categoryIcon, toast, aiLabel } from '../state.js'
 import { listMovements } from '../lib/repo.js'
 import { monthTotals, byCategory } from '../lib/summary.js'
 import { movementsToCsv, downloadBlob } from '../lib/csv.js'
@@ -13,7 +13,9 @@ import { toDecimal } from '../lib/money.js'
 import { describeMonth } from '../lib/ai.js'
 
 const month = ref(readOpenMonth())
+/** @type {import('vue').Ref<import('../types').Movement[]>} */
 const movements = ref([])
+/** @type {import('vue').Ref<import('../types').Movement[]>} */
 const previous = ref([])
 const description = ref('')
 const describing = ref(false)
@@ -44,6 +46,7 @@ async function load () {
   }
 }
 
+/** @param {number} delta */
 function go (delta) {
   month.value = shiftMonth(month.value, delta)
   saveOpenMonth(month.value)
@@ -53,6 +56,7 @@ function go (delta) {
 async function describe () {
   describing.value = true
   try {
+    /** @param {import('../types').CategoryTotal[]} list */
     const rows = (list) => list.map((c) => ({ name: categoryName(c.category), total: toDecimal(c.total) }))
     const prevTotals = monthTotals(previous.value)
     description.value = await describeMonth({
@@ -131,7 +135,7 @@ onMounted(load)
     <section v-if="state.ai.configured && confirmed" class="card stack" data-testid="describe-card">
       <p v-if="description" data-testid="description">{{ description }}</p>
       <div class="row between">
-        <span class="info-text">{{ t('ai.describeNote', { label: state.ai.label }) }}</span>
+        <span class="info-text">{{ t('ai.describeNote', { label: aiLabel() }) }}</span>
         <button type="button" class="btn small" :disabled="describing" data-testid="describe" @click="describe">{{ describing ? t('ai.describing') : t('ai.describe') }}</button>
       </div>
     </section>

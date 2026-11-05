@@ -3,32 +3,39 @@
 // La llave escrita vive solo en este formulario mientras está abierto; guardada, va sellada.
 import { ref, computed } from 'vue'
 import { t, errorText } from '../i18n.js'
-import { state, refreshAi, toast } from '../state.js'
+import { state, refreshAi, toast, aiLabel } from '../state.js'
 import { PROVIDERS, PROVIDER_KEYS, testAi, saveAi, forgetAi } from '../lib/ai.js'
 
 const info = ref(false)
 const editing = ref(false)
-const form = ref(null)
+/** @returns {import('../types').AiConfig} */
+const blankForm = () => ({ provider: state.ai.configured ? state.ai.provider : 'openai', apiKey: '', model: '', baseUrl: '' })
+// Lo escrito en el formulario. Al cerrarlo se vacía: la llave no se queda en memoria.
+const form = ref(blankForm())
 const busy = ref('')          // '' | 'test' | 'save' | 'remove'
 const problem = ref('')
 
-const preset = computed(() => form.value ? PROVIDERS[form.value.provider] : null)
-const needsKey = computed(() => preset.value && !preset.value.keyless)
-const showBaseUrl = computed(() => form.value?.provider === 'custom' || form.value?.provider === 'ollama')
+const preset = computed(() => PROVIDERS[form.value.provider])
+const needsKey = computed(() => !!preset.value && !preset.value.keyless)
+const showBaseUrl = computed(() => form.value.provider === 'custom' || form.value.provider === 'ollama')
 const label = computed(() => preset.value?.label || '')
 
 function open () {
-  form.value = { provider: state.ai.provider || 'openai', apiKey: '', model: '', baseUrl: '' }
+  form.value = blankForm()
   problem.value = ''
   editing.value = true
 }
 
 function close () {
   editing.value = false
-  form.value = null
+  form.value = blankForm()
   problem.value = ''
 }
 
+/**
+ * @param {'test' | 'save' | 'remove'} kind
+ * @param {() => Promise<void>} fn
+ */
 async function run (kind, fn) {
   busy.value = kind
   problem.value = ''
@@ -73,7 +80,7 @@ const remove = () => run('remove', async () => {
     <p v-if="state.aiError" class="banner error" data-testid="ai-error">{{ errorText(state.aiError) }}</p>
 
     <div v-if="!editing" class="row between">
-      <span data-testid="ai-status">{{ state.ai.configured ? t('ai.active', { label: state.ai.label, model: state.ai.model }) : t('ai.none') }}</span>
+      <span data-testid="ai-status">{{ state.ai.configured ? t('ai.active', { label: aiLabel(), model: state.ai.model }) : t('ai.none') }}</span>
       <button type="button" class="btn small" data-testid="ai-edit" @click="open">{{ state.ai.configured ? t('ai.change') : t('ai.configure') }}</button>
     </div>
 

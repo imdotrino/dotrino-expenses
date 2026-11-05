@@ -18,13 +18,26 @@ import { codeError } from './errors.js'
 
 export { PROVIDERS }
 
+/** @typedef {import('../types').AiConfig} AiConfig */
+/** @typedef {import('../types').AiStatus} AiStatus */
+/** @typedef {import('../types').Category} Category */
+/** @typedef {import('../types').Lang} Lang */
+/**
+ * Lo que va al proveedor de un mes: totales ya formateados, nada más.
+ * @typedef {{ income: string, expense: string, expenses: { name: string, total: string }[] }} MonthForAi
+ */
+
 /** Proveedores que se ofrecen, en el orden del selector. */
 export const PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'groq', 'openrouter', 'ollama', 'custom']
 
+/** @type {AiConfig | null} */
 let config = null        // { provider, apiKey, model, baseUrl } abierto, o null
 let loaded = false
 
-/** Lo que la pantalla puede saber: si hay IA y de quién. Nunca la llave. */
+/**
+ * Lo que la pantalla puede saber: si hay IA y de quién. Nunca la llave.
+ * @returns {AiStatus}
+ */
 export function aiStatus () {
   if (!config) return { configured: false }
   const preset = PROVIDERS[config.provider]
@@ -37,7 +50,10 @@ export function aiStatus () {
   }
 }
 
-/** Abre la configuración guardada. Sin registro, no hay IA; un registro que no abre se dice. */
+/**
+ * Abre la configuración guardada. Sin registro, no hay IA; un registro que no abre se dice.
+ * @returns {Promise<AiStatus>}
+ */
 export async function loadAi () {
   const record = await readAiRecord()
   loaded = true
@@ -51,20 +67,28 @@ export async function loadAi () {
     plaintext = await id.openContent(record.envelope)
   } catch (e) {
     config = null
-    throw codeError('ai-seal-unopenable', `the saved AI key cannot be opened with the account key on this device: ${e?.message || e}`, { cause: e })
+    throw codeError('ai-seal-unopenable', `the saved AI key cannot be opened with the account key on this device: ${e instanceof Error ? e.message : e}`, { cause: e })
   }
   config = JSON.parse(plaintext)
   return aiStatus()
 }
 
-/** Prueba la configuración con una pregunta mínima. Lanza con el código de @dotrino/ai. */
+/**
+ * Prueba la configuración con una pregunta mínima. Lanza con el código de @dotrino/ai.
+ * @param {AiConfig} cfg
+ * @returns {Promise<import('@dotrino/ai').AiInfo>}
+ */
 export async function testAi (cfg) {
   const ai = makeClient(cfg)
   await ai.ask({ prompt: 'Reply with the single word: ok', maxTokens: 16, effort: 'low' })
   return ai.info
 }
 
-/** Sella y guarda. Antes de devolver, abre el sello: si no abre aquí, no abrirá nunca. */
+/**
+ * Sella y guarda. Antes de devolver, abre el sello: si no abre aquí, no abrirá nunca.
+ * @param {Partial<AiConfig> & { provider: string }} cfg
+ * @returns {Promise<AiStatus>}
+ */
 export async function saveAi (cfg) {
   const clean = {
     provider: cfg.provider,
@@ -83,11 +107,13 @@ export async function saveAi (cfg) {
   return aiStatus()
 }
 
+/** Borra la llave de IA guardada (sellada) y la olvida en memoria. */
 export async function forgetAi () {
   await removeAiRecord()
   config = null
 }
 
+/** @param {AiConfig} cfg */
 function makeClient (cfg) {
   return createAI({
     provider: cfg.provider,
@@ -107,8 +133,8 @@ function client () {
 
 /**
  * @param {string} text
- * @param {{ today: string, categories: object[], lang: 'es'|'en' }} ctx
- * @returns {Promise<{ amount:number, type:string, category:string, note:string, date:string }>}
+ * @param {{ today: string, categories: Category[], lang: Lang }} ctx
+ * @returns {Promise<import('../types').ProposedMovement>}
  */
 export async function parseWithAi (text, { today, categories, lang }) {
   const ai = client()
@@ -145,6 +171,9 @@ export async function parseWithAi (text, { today, categories, lang }) {
  * Lo mismo que la frase, para un correo del banco pegado (o traído del buzón). Al proveedor va
  * el texto del correo, recortado; el usuario lo sabe porque lo dice Ajustes → Tu IA.
  * Devuelve null si el modelo dice que el correo no es una operación (saldo, publicidad).
+ * @param {string} text
+ * @param {{ today: string, categories: Category[], lang: Lang }} ctx
+ * @returns {Promise<(import('../types').ProposedMovement & { bank: string }) | null>}
  */
 export async function parseMailWithAi (text, { today, categories, lang }) {
   const ai = client()
@@ -178,15 +207,21 @@ export async function parseMailWithAi (text, { today, categories, lang }) {
   try {
     m = checkMovement(answer, { today, categories })
   } catch (e) {
-    if (e.code === 'ai-no-amount') return null
+    if (/** @type {{ code?: string }} */ (e)?.code === 'ai-no-amount') return null
     throw e
   }
-  return { ...m, bank: String(answer.bank || '').trim().slice(0, 40) }
+  const bank = /** @type {{ bank?: unknown }} */ (answer).bank
+  return { ...m, bank: String(bank || '').trim().slice(0, 40) }
 }
 
 // ---------- la voz → texto (el dictado con el proveedor) ----------
 
-/** Lo que pasa <dotrino-dictation engine="provider"> como `.transcriber`. */
+/**
+ * Lo que pasa <dotrino-dictation engine="provider"> como `.transcriber`.
+ * @param {Blob} audio
+ * @param {{ language?: string }} [opts]
+ * @returns {Promise<string>}
+ */
 export async function transcribeWithAi (audio, { language } = {}) {
   return client().transcribe(audio, { language })
 }
@@ -196,9 +231,12 @@ export async function transcribeWithAi (audio, { language } = {}) {
 /**
  * Tres o cuatro frases sobre el mes. Al proveedor va SOLO esto: los totales por categoría de
  * este mes y del anterior. Ni notas, ni fechas, ni nada que el usuario escribió.
+ * @param {{ month: string, prevMonth: string, current: MonthForAi & { incomes: { name: string, total: string }[] }, previous: MonthForAi, currency: string, lang: Lang }} o
+ * @returns {Promise<string>}
  */
 export async function describeMonth ({ month, prevMonth, current, previous, currency, lang }) {
   const ai = client()
+  /** @param {{ name: string, total: string }[]} rows */
   const fmt = (rows) => rows.map((r) => `- ${r.name}: ${r.total}`).join('\n') || '- (none)'
   const prompt = [
     `Currency: ${currency}.`,
